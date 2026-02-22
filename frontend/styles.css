@@ -1,0 +1,2135 @@
+/* CSS Variables */
+:root {
+    --primary-green: #2d8a4e;
+    --primary-green-light: #4ade80;
+    --primary-green-dark: #166534;
+    --earth-brown: #8b5a2b;
+    --earth-brown-light: #d4a574;
+    --sky-blue: #60a5fa;
+    --sky-blue-light: #bfdbfe;
+    --sun-yellow: #fbbf24;
+    --warning-orange: #f97316;
+    --danger-red: #ef4444;
+    --frost-blue: #06b6d4;
+    --bg-light: #f0fdf4;
+    --bg-card: #ffffff;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --text-light: #9ca3af;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+}
+
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, var(--bg-light) 0%, #dcfce7 50%, #fef9c3 100%);
+    min-height: 100vh;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        /* Realistic sky gradient */
+        linear-gradient(180deg, 
+            #87CEEB 0%,       /* Light blue sky */
+            #B0E0E6 30%,      /* Powder blue */
+            #98D8AA 60%,      /* Soft green horizon */
+            #4CAF50 80%,      /* Rich green fields */
+            #2E7D32 100%);    /* Dark green ground */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Simple sun */
+.modal::after {
+    content: '☀️';
+    position: absolute;
+    top: 10%;
+    right: 15%;
+    font-size: 3.5rem;
+    filter: drop-shadow(0 0 15px rgba(255, 200, 50, 0.5));
+    pointer-events: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem 2rem;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.5s ease;
+    position: relative;
+}
+
+/* Farmer Icon */
+.welcome-farmer-icon {
+    font-size: 4rem;
+    margin-bottom: 0.5rem;
+}
+
+.namaste-hands {
+    font-size: 2rem;
+    animation: namasteWave 2s ease-in-out infinite;
+    margin-bottom: -5px;
+}
+
+.farmer-face {
+    font-size: 3.5rem;
+}
+
+/* Welcome Content */
+.welcome-content {
+    position: relative;
+    z-index: 1;
+}
+
+
+
+.welcome-namaste {
+    display: block;
+    font-size: 1.3rem;
+    color: var(--accent-orange);
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
+
+.welcome-title-main {
+    display: block;
+}
+
+/* Features Section */
+.welcome-features {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.feature {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.feature-icon {
+    font-size: 2rem;
+}
+
+.feature span:last-child {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Button Emoji */
+.btn-emoji {
+    font-size: 1.2rem;
+}
+
+/* Welcome Tagline */
+.welcome-tagline {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.8;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.welcome-modal h1 {
+    font-size: 2rem;
+    color: var(--primary-green-dark);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.welcome-subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-lg);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: inherit;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(45, 138, 78, 0.3);
+}
+
+.btn-large {
+    padding: 1.2rem 3rem;
+    font-size: 1.2rem;
+}
+
+.btn-arrow {
+    transition: transform 0.3s ease;
+}
+
+.btn-primary:hover .btn-arrow {
+    transform: translateX(5px);
+}
+
+.btn-icon {
+    background: var(--bg-card);
+    border: 2px solid var(--primary-green-light);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background: var(--primary-green-light);
+    transform: rotate(180deg);
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, var(--primary-green-dark) 0%, var(--primary-green) 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logo-icon {
+    font-size: 2rem;
+}
+
+.logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.header-greeting {
+    font-size: 1rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-actions .btn-icon {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.header-actions .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Refresh Button Animation */
+.btn-icon.refreshing {
+    animation: spinRefresh 0.6s ease-in-out;
+    pointer-events: none;
+}
+
+@keyframes spinRefresh {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Talk Button Speaking Animation */
+.btn-icon.speaking {
+    animation: pulseSpeak 1s ease-in-out infinite;
+    background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
+    color: white;
+}
+
+@keyframes pulseSpeak {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4); }
+    50% { transform: scale(1.1); box-shadow: 0 0 15px 5px rgba(46, 125, 50, 0.3); }
+}
+
+.btn-icon:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Refresh Message Toast */
+.refresh-message {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 0.875rem 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    font-weight: 500;
+    font-size: 0.95rem;
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 90%;
+    text-align: center;
+}
+
+.refresh-message.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.refresh-message-success {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 2px solid var(--primary-green);
+    color: var(--primary-green-dark);
+}
+
+.refresh-message-error {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 2px solid #ef4444;
+    color: #b91c1c;
+}
+
+.refresh-message-info {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border: 2px solid #0ea5e9;
+    color: #0369a1;
+}
+
+/* Language Selector */
+.language-selector {
+    position: relative;
+}
+
+.language-dropdown {
+    appearance: none;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-md);
+    color: white;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 100px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+}
+
+.language-dropdown:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.language-dropdown:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.language-dropdown option {
+    background: var(--primary-green-dark);
+    color: white;
+    padding: 0.5rem;
+}
+
+/* Main Content */
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f0fdf4 50%, #ecfdf5 100%);
+    min-height: calc(100vh - 100px);
+}
+
+/* Sections */
+.section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 3px solid var(--primary-green-light);
+}
+
+.section-icon {
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--primary-green-light) 0%, var(--primary-green) 100%);
+    padding: 0.5rem;
+    border-radius: 12px;
+}
+
+/* Location Section */
+.location-card {
+    background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    border: 2px solid #7dd3fc;
+}
+
+.location-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.location-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.location-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.location-coords {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.gps-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, var(--sky-blue) 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    padding: 0.875rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.gps-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+}
+
+.crosshair-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.gps-btn.loading .crosshair-icon {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    color: var(--text-secondary);
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--primary-green-light);
+    border-top-color: var(--primary-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Manual Location Selection - Farmer Friendly */
+.manual-location-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed #e5e7eb;
+}
+
+.manual-location-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.manual-icon {
+    font-size: 2rem;
+    animation: pointUp 1s ease infinite;
+}
+
+@keyframes pointUp {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.manual-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Region Grid */
+.region-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.75rem;
+}
+
+.region-card {
+    background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+    border-radius: var(--radius-lg);
+    padding: 1rem 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 3px solid transparent;
+    box-shadow: var(--shadow-sm);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.region-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--earth-brown-light);
+}
+
+.region-card.selected {
+    border-color: var(--earth-brown);
+    background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
+    box-shadow: 0 0 0 4px rgba(139, 90, 43, 0.2);
+}
+
+.region-emoji {
+    font-size: 2.5rem;
+}
+
+.region-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--earth-brown);
+    line-height: 1.2;
+}
+
+/* District Selection */
+.district-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.district-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.district-icon {
+    font-size: 1.5rem;
+}
+
+.district-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.district-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.5rem;
+}
+
+.district-card {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.district-card:hover {
+    transform: scale(1.05);
+    border-color: var(--sky-blue);
+    box-shadow: var(--shadow-md);
+}
+
+.district-card.selected {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #93c5fd 0%, #60a5fa 100%);
+    color: white;
+}
+
+.district-card.selected .district-name {
+    color: white;
+}
+
+.district-emoji {
+    font-size: 1.75rem;
+}
+
+.district-name {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #1e40af;
+    line-height: 1.2;
+}
+
+/* Location Confirmation */
+.location-confirmation {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: confirmPop 0.4s ease;
+    border: 2px solid var(--primary-green);
+}
+
+@keyframes confirmPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.confirmation-icon {
+    font-size: 2.5rem;
+}
+
+.confirmation-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.confirmation-label {
+    font-size: 0.85rem;
+    color: var(--primary-green-dark);
+}
+
+.confirmation-location {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary-green-dark);
+}
+
+/* Crop Selection */
+.crop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1.2rem;
+}
+
+.crop-card {
+    background: linear-gradient(145deg, #ffffff, #f0fdf4);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 3px solid #d1fae5;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.crop-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(45, 138, 78, 0.2);
+    border-color: var(--primary-green);
+    background: linear-gradient(145deg, #dcfce7, #bbf7d0);
+}
+
+.crop-card.selected {
+    border-color: var(--primary-green);
+    background: linear-gradient(145deg, #bbf7d0, #86efac);
+    box-shadow: 0 0 0 4px rgba(45, 138, 78, 0.3), 0 8px 20px rgba(45, 138, 78, 0.25);
+}
+
+.crop-image {
+    font-size: 4rem;
+    margin-bottom: 0.75rem;
+    display: block;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1));
+}
+
+.crop-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.selected-crop-info {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
+    border-radius: var(--radius-md);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.selected-label {
+    opacity: 0.9;
+}
+
+.selected-crop-name {
+    font-weight: 600;
+}
+
+/* Alerts Section */
+.alerts-container {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    min-height: 150px;
+    border: 2px solid var(--primary-green-light);
+}
+
+.placeholder-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    color: var(--text-secondary);
+    text-align: center;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+}
+
+.placeholder-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Weather Card */
+.weather-card {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.weather-item {
+    text-align: center;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border-radius: var(--radius-lg);
+    border: 2px solid #7dd3fc;
+    transition: transform 0.3s ease;
+}
+
+.weather-item:hover {
+    transform: translateY(-3px);
+}
+
+.weather-item.temp-item {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-color: #fbbf24;
+}
+
+.weather-item.rain-item {
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    border-color: #3b82f6;
+}
+
+.weather-item.humidity-item {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    border-color: #818cf8;
+}
+
+.weather-item.wind-item {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-color: #34d399;
+}
+
+.weather-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.weather-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.weather-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+/* Weather Summary */
+.weather-summary {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 2px solid var(--primary-green-light);
+    margin-top: 1rem;
+}
+
+.weather-summary p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.weather-summary strong {
+    color: var(--primary-green-dark);
+    font-size: 1.1rem;
+}
+
+/* Activities Grid */
+.activities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.activity-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    border-left: 6px solid var(--text-light);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.activity-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.activity-card.recommended {
+    border-left-color: var(--primary-green);
+    background: linear-gradient(135deg, #dcfce7 0%, #ffffff 100%);
+}
+
+.activity-card.recommended::after {
+    content: '✅';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+}
+
+.activity-card.not-recommended {
+    border-left-color: var(--danger-red);
+    background: linear-gradient(135deg, #fee2e2 0%, #ffffff 100%);
+}
+
+.activity-card.not-recommended::after {
+    content: '❌';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.activity-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.activity-status {
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.activity-card.recommended .activity-status {
+    background: #dcfce7;
+    color: var(--primary-green-dark);
+}
+
+.activity-card.not-recommended .activity-status {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.activity-reasons {
+    list-style: none;
+    margin-bottom: 1rem;
+}
+
+.activity-reasons li {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    padding: 0.25rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.activity-reasons li::before {
+    content: "•";
+    color: var(--text-light);
+}
+
+.activity-time {
+    font-size: 0.85rem;
+    color: var(--primary-green);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Frost Section */
+.frost-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+}
+
+.frost-card.risk-minimal {
+    border: 3px solid var(--primary-green);
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.frost-card.risk-low {
+    border: 3px solid var(--sun-yellow);
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.frost-card.risk-moderate {
+    border: 3px solid var(--warning-orange);
+    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+}
+
+.frost-card.risk-high {
+    border: 3px solid var(--danger-red);
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.frost-icon {
+    font-size: 4rem;
+    margin-bottom: 0.5rem;
+}
+
+.frost-level {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.frost-card.risk-minimal .frost-level { color: var(--primary-green); }
+.frost-card.risk-low .frost-level { color: var(--sun-yellow); }
+.frost-card.risk-moderate .frost-level { color: var(--warning-orange); }
+.frost-card.risk-high .frost-level { color: var(--danger-red); }
+
+.frost-probability {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.frost-recommendation {
+    font-size: 1rem;
+    color: var(--text-primary);
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: var(--radius-md);
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: var(--primary-green-dark);
+    color: white;
+    margin-top: 2rem;
+}
+
+.footer p:first-child {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.footer-subtitle {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin-top: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header-content {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .header-greeting {
+        order: 3;
+        width: 100%;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+    
+    .welcome-modal h1 {
+        font-size: 1.6rem;
+    }
+    
+    .welcome-namaste {
+        font-size: 1.1rem;
+    }
+    
+    .modal-content {
+        padding: 1.5rem;
+    }
+    
+    .welcome-farmer-icon {
+        font-size: 3rem;
+    }
+    
+    .welcome-features {
+        gap: 1rem;
+    }
+    
+    .feature-icon {
+        font-size: 1.5rem;
+    }
+    
+    .crop-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .gps-btn-text {
+        display: none;
+    }
+    
+    .gps-btn {
+        padding: 0.875rem;
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .crop-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .crop-image {
+        font-size: 2.5rem;
+    }
+    
+    .activities-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Welcome Modal Mobile */
+    .welcome-modal h1 {
+        font-size: 1.4rem;
+    }
+    
+    .welcome-namaste {
+        font-size: 1rem;
+    }
+    
+    .modal-content {
+        padding: 1.2rem;
+        max-width: 95%;
+    }
+    
+    .welcome-farmer-icon {
+        font-size: 2.5rem;
+    }
+    
+    .welcome-features {
+        gap: 0.8rem;
+    }
+    
+    .feature-icon {
+        font-size: 1.5rem;
+    }
+    
+    .feature span:last-child {
+        font-size: 0.7rem;
+    }
+    
+    .btn-large {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+    
+    .welcome-tagline {
+        font-size: 0.75rem;
+    }
+}
+
+/* ============================
+   Telangana Interactive Map
+   ============================ */
+
+.telangana-map-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #e8f5e9 0%, #fff8e1 100%);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--primary-green-light);
+}
+
+.map-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-green-dark);
+}
+
+.map-icon {
+    font-size: 1.5rem;
+}
+
+.map-instruction {
+    font-size: 1rem;
+}
+
+.map-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.telangana-map-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.district-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+/* District Paths */
+.district-path {
+    fill: #a5d6a7;
+    stroke: #2e7d32;
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.district-path:hover {
+    fill: #66bb6a;
+    stroke-width: 3;
+    filter: brightness(1.1);
+}
+
+.district-path.selected {
+    fill: var(--primary-green);
+    stroke: var(--primary-green-dark);
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px rgba(45, 138, 78, 0.5));
+}
+
+/* District Labels */
+.district-label {
+    font-size: 10px;
+    font-weight: 600;
+    fill: #1b5e20;
+    text-anchor: middle;
+    pointer-events: none;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.district-label.small {
+    font-size: 8px;
+}
+
+.district-label.highlighted {
+    font-size: 12px;
+    fill: var(--primary-green-dark);
+    font-weight: 700;
+}
+
+/* Map Title */
+.map-title {
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--primary-green-dark);
+    text-anchor: middle;
+}
+
+/* Map Legend */
+.map-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: var(--radius-sm);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid #2e7d32;
+}
+
+.legend-color.selected {
+    background: var(--primary-green);
+}
+
+/* Map Tooltip */
+#mapTooltip {
+    position: absolute;
+    background: var(--primary-green-dark);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 100;
+    white-space: nowrap;
+}
+
+#mapTooltip.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+#mapTooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--primary-green-dark);
+}
+
+/* Manual Location Selector - Dropdowns */
+.manual-selector-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-radius: var(--radius-md);
+    border: 2px dashed var(--primary-green-light);
+}
+
+.manual-selector-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: var(--primary-green-dark);
+}
+
+.selector-icon {
+    font-size: 1.25rem;
+}
+
+.selector-title {
+    font-size: 1rem;
+}
+
+.manual-selector-dropdowns {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+@media (min-width: 600px) {
+    .manual-selector-dropdowns {
+        flex-direction: row;
+        gap: 1.5rem;
+    }
+    
+    .selector-group {
+        flex: 1;
+    }
+}
+
+.selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.selector-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-green-dark);
+}
+
+.selector-dropdown {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 2px solid var(--primary-green-light);
+    border-radius: var(--radius-sm);
+    background: white;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232d8a4e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+.selector-dropdown:hover:not(:disabled) {
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 3px rgba(45, 138, 78, 0.15);
+}
+
+.selector-dropdown:focus {
+    outline: none;
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 3px rgba(45, 138, 78, 0.2);
+}
+
+.selector-dropdown:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.selector-dropdown option {
+    padding: 0.5rem;
+}
+
+/* Map Animation */
+@keyframes mapPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Mobile Responsive for Map */
+@media (max-width: 768px) {
+    .telangana-map-section {
+        padding: 0.75rem;
+    }
+    
+    .map-header {
+        font-size: 1rem;
+    }
+    
+    .district-label {
+        font-size: 8px;
+    }
+    
+    .district-label.small {
+        font-size: 7px;
+    }
+    
+    .map-title {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .district-path {
+        stroke-width: 1.5;
+    }
+    
+    .district-label {
+        font-size: 6px;
+    }
+    
+    .district-label.small {
+        display: none;
+    }
+    
+    .map-legend {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* ============================================
+   7-DAY FORECAST SECTION
+   ============================================ */
+
+.forecast-section {
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 2px solid #7dd3fc;
+}
+
+.forecast-scroll-container {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.forecast-grid {
+    display: flex;
+    gap: 1rem;
+    min-width: max-content;
+    padding: 0.5rem 0;
+}
+
+.forecast-day-card {
+    flex: 0 0 auto;
+    width: 120px;
+    background: linear-gradient(145deg, #ffffff, #f0fdf4);
+    border-radius: var(--radius-lg);
+    padding: 1.2rem 0.75rem;
+    text-align: center;
+    border: 3px solid var(--primary-green-light);
+    transition: all 0.3s ease;
+    cursor: default;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.forecast-day-card:first-child {
+    background: linear-gradient(145deg, var(--primary-green), var(--primary-green-dark));
+    color: white;
+    border: 3px solid var(--primary-green-dark);
+    transform: scale(1.05);
+}
+
+.forecast-day-card:first-child .day-name,
+.forecast-day-card:first-child .day-date,
+.forecast-day-card:first-child .temp-range {
+    color: white;
+}
+
+.forecast-day-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.forecast-day-card .day-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.forecast-day-card .day-date {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.forecast-day-card .weather-emoji {
+    font-size: 2.5rem;
+    display: block;
+    margin: 0.5rem 0;
+    animation: gentleBob 3s ease-in-out infinite;
+}
+
+@keyframes gentleBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+.forecast-day-card .temp-range {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.forecast-day-card .temp-range .temp-high {
+    color: var(--danger-red);
+}
+
+.forecast-day-card .temp-range .temp-low {
+    color: var(--sky-blue);
+}
+
+.forecast-day-card:first-child .temp-range .temp-high,
+.forecast-day-card:first-child .temp-range .temp-low {
+    color: white;
+    opacity: 0.9;
+}
+
+.forecast-day-card .rain-chance {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--sky-blue);
+    margin-top: 0.5rem;
+}
+
+.forecast-day-card:first-child .rain-chance {
+    color: rgba(255,255,255,0.9);
+}
+
+/* Week Summary */
+.week-summary {
+    margin-top: 1.5rem;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #fef9c3, #fde68a);
+    border-radius: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-around;
+    border: 2px solid #fbbf24;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.summary-item:hover {
+    transform: scale(1.05);
+}
+
+.summary-item .summary-emoji {
+    font-size: 2rem;
+}
+
+.summary-item .summary-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.summary-item .summary-value {
+    font-weight: 700;
+    color: var(--primary-green);
+    font-size: 1.1rem;
+}
+
+/* ============================================
+   SMART VISUAL RECOMMENDATIONS
+   ============================================ */
+
+.smart-recommendations-section {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 20px;
+    padding: 1.5rem;
+    border: 3px solid #f59e0b;
+    box-shadow: var(--shadow-md);
+}
+
+.recommendations-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+}
+
+.recommendations-header .section-title {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.language-badge {
+    background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+}
+
+.smart-recommendations-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Today's Action Cards - Large & Visual */
+.today-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.action-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 4px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+}
+
+/* DO - Green Card with checkmark */
+.action-card.action-do {
+    background: linear-gradient(145deg, #dcfce7, #bbf7d0);
+    border-color: var(--primary-green);
+}
+
+.action-card.action-do::before {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 2rem;
+    color: var(--primary-green);
+    font-weight: bold;
+}
+
+.action-card.action-do::after {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 80px;
+    height: 80px;
+    background: rgba(45, 138, 78, 0.15);
+    border-radius: 50%;
+}
+
+/* DON'T - Red Card with X mark */
+.action-card.action-dont {
+    background: linear-gradient(145deg, #fee2e2, #fecaca);
+    border-color: var(--danger-red);
+}
+
+.action-card.action-dont::before {
+    content: '✗';
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 2rem;
+    color: var(--danger-red);
+    font-weight: bold;
+}
+
+.action-card.action-dont::after {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 80px;
+    height: 80px;
+    background: rgba(239, 68, 68, 0.15);
+    border-radius: 50%;
+}
+
+/* WAIT - Yellow Card */
+.action-card.action-wait {
+    background: linear-gradient(145deg, #fef9c3, #fde68a);
+    border-color: var(--warning-orange);
+}
+
+.action-card.action-wait::before {
+    content: '⏳';
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+}
+
+/* ALERT - Blue Card */
+.action-card.action-alert {
+    background: linear-gradient(145deg, #dbeafe, #bfdbfe);
+    border-color: var(--sky-blue);
+}
+
+.action-card.action-alert::before {
+    content: '⚠️';
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+}
+
+/* PLAN - Purple Card */
+.action-card.action-plan {
+    background: linear-gradient(145deg, #f3e8ff, #e9d5ff);
+    border-color: #a855f7;
+}
+
+.action-card.action-plan::before {
+    content: '📋';
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+}
+
+.action-card .action-emoji {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+
+.action-card.action-dont .action-emoji {
+    animation: actionShake 0.5s ease-in-out infinite;
+}
+
+@keyframes actionShake {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+}
+
+.action-card .action-day {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    margin-bottom: 0.75rem;
+}
+
+.action-card.action-do .action-day {
+    background: var(--primary-green);
+    color: white;
+}
+
+.action-card.action-dont .action-day {
+    background: var(--danger-red);
+    color: white;
+}
+
+.action-card.action-wait .action-day {
+    background: var(--warning-orange);
+    color: white;
+}
+
+.action-card.action-alert .action-day {
+    background: var(--sky-blue);
+    color: white;
+}
+
+.action-card.action-plan .action-day {
+    background: #a855f7;
+    color: white;
+}
+
+.action-card .action-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.action-card .action-reason {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.action-card .action-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    background: rgba(0,0,0,0.05);
+    border-radius: var(--radius-sm);
+}
+
+/* Status Badge */
+.action-status-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.action-status-badge.badge-do {
+    background: var(--primary-green);
+}
+
+.action-status-badge.badge-dont {
+    background: var(--danger-red);
+}
+
+.action-status-badge.badge-wait {
+    background: var(--warning-orange);
+}
+
+/* Week Planning Cards */
+.week-planning {
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--text-light);
+}
+
+.planning-header, .tips-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.planning-icon, .tips-icon {
+    font-size: 1.8rem;
+}
+
+.planning-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+}
+
+.planning-card {
+    flex: 1 1 200px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    border-radius: 14px;
+    border-left: 5px solid var(--sky-blue);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease;
+}
+
+.planning-card:hover {
+    transform: translateY(-3px);
+}
+
+.planning-card .planning-emoji {
+    font-size: 2.5rem;
+}
+
+.planning-card .planning-content {
+    flex: 1;
+}
+
+.planning-card .planning-day {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--primary-green-dark);
+}
+
+.planning-card .planning-activity {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Crop Tips */
+.crop-tips {
+    padding-top: 1.5rem;
+    border-top: 3px dashed var(--primary-green-light);
+}
+
+.tips-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+}
+
+.tip-card {
+    flex: 1 1 250px;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border-radius: 16px;
+    border-left: 5px solid var(--primary-green);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease;
+}
+
+.tip-card:hover {
+    transform: translateX(5px);
+}
+
+.tip-card.tip-urgent {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border-left-color: var(--danger-red);
+}
+
+.tip-card .tip-emoji {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+}
+
+.tip-card .tip-text {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.6;
+    font-weight: 500;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+    .forecast-day-card {
+        width: 90px;
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .forecast-day-card .weather-emoji {
+        font-size: 2rem;
+    }
+    
+    .forecast-day-card .day-name {
+        font-size: 0.75rem;
+    }
+    
+    .action-card .action-emoji {
+        font-size: 3rem;
+    }
+    
+    .action-card .action-title {
+        font-size: 1.1rem;
+    }
+    
+    .week-summary {
+        flex-direction: column;
+    }
+    
+    .summary-item {
+        justify-content: center;
+    }
+    
+    .recommendations-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .language-badge {
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .forecast-day-card {
+        width: 80px;
+    }
+    
+    .forecast-day-card .weather-emoji {
+        font-size: 1.75rem;
+    }
+    
+    .today-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-card {
+        padding: 1rem;
+    }
+    
+    .action-card .action-emoji {
+        font-size: 2.5rem;
+    }
+}
