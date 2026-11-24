@@ -664,20 +664,17 @@ function handleMapDistrictClick(event) {
     const districtId = event.target.getAttribute('data-district');
     if (!districtId || !telanganaMapDistricts[districtId]) return;
     
-    // Remove previous selection
-    document.querySelectorAll('.district-path').forEach(path => {
-        path.classList.remove('selected');
-    });
-    
-    // Add selection to clicked district
-    event.target.classList.add('selected');
+    // Sync dropdowns and map highlight
+    syncLocationDropdowns(districtId);
     
     // Get district data
     const district = telanganaMapDistricts[districtId];
+    const citySelect = document.getElementById('citySelect');
+    const selectedCity = (citySelect && citySelect.value) ? citySelect.value : district.name;
     
     // Update app state if it exists
     if (typeof appState !== 'undefined') {
-        appState.selectedDistrict = district;
+        appState.selectedDistrict = { ...district, selectedCity: selectedCity };
         appState.selectedRegion = { id: 'telangana', name: 'Telangana' };
         appState.location = { lat: district.lat, lng: district.lng };
     }
@@ -771,11 +768,98 @@ function shouldShowMap(regionId) {
     return regionId === 'telangana';
 }
 
-// Select district from map (for external calls)
-function selectDistrictFromMap(districtId) {
+// Synchronize District and City dropdowns and map selection
+function syncLocationDropdowns(districtId, cityName, lat, lng) {
+    const districtSelect = document.getElementById('districtSelect');
+    const citySelect = document.getElementById('citySelect');
+    const lang = typeof currentLanguage !== 'undefined' ? currentLanguage : 'en';
+    
+    const cityPlaceholderLabels = {
+        en: 'Select City/Town', hi: 'शहर/कस्बा चुनें', te: 'నగరం/పట్టణం ఎంచుకోండి',
+        ta: 'நகரம்/ஊர் தேர்ந்தெடுக்கவும்', kn: 'ನಗರ/ಪಟ್ಟಣ ಆಯ್ಕೆಮಾಡಿ',
+        mr: 'शहर/गाव निवडा', pa: 'ਸ਼ਹਿਰ/ਕਸਬਾ ਚੁਣੋ', bn: 'শহর/শহর নির্বাচন করুন'
+    };
+    const cityPlaceholder = cityPlaceholderLabels[lang] || cityPlaceholderLabels['en'];
+    
+    if (!districtId || !telanganaMapDistricts[districtId]) {
+        if (districtSelect) {
+            districtSelect.value = '';
+        }
+        if (citySelect) {
+            citySelect.innerHTML = `<option value="">-- ${cityPlaceholder} --</option>`;
+            citySelect.disabled = true;
+            citySelect.value = '';
+        }
+        document.querySelectorAll('.district-path').forEach(p => p.classList.remove('selected'));
+        return;
+    }
+    
+    // 1. Select district in dropdown
+    if (districtSelect) {
+        districtSelect.value = districtId;
+    }
+    
+    // 2. Populate cities in dropdown
+    handleDistrictSelectChange({ target: { value: districtId } });
+    
+    // 3. Match or add city in dropdown
+    if (citySelect) {
+        citySelect.disabled = false;
+        if (cityName) {
+            const cleanTarget = cityName.trim().toLowerCase();
+            let matchedOption = null;
+            
+            for (let i = 0; i < citySelect.options.length; i++) {
+                const opt = citySelect.options[i];
+                if (!opt.value) continue;
+                const optVal = opt.value.trim().toLowerCase();
+                const optText = opt.textContent.trim().toLowerCase();
+                if (optVal === cleanTarget || optText.includes(cleanTarget) || cleanTarget.includes(optVal)) {
+                    matchedOption = opt;
+                    break;
+                }
+            }
+            
+            if (matchedOption) {
+                citySelect.value = matchedOption.value;
+            } else {
+                // Dynamically insert detected town/village (Requirement 3.6)
+                const newOpt = document.createElement('option');
+                newOpt.value = cityName;
+                newOpt.textContent = `${cityName} (GPS)`;
+                if (lat !== undefined && lng !== undefined) {
+                    newOpt.setAttribute('data-lat', lat);
+                    newOpt.setAttribute('data-lng', lng);
+                }
+                citySelect.appendChild(newOpt);
+                citySelect.value = cityName;
+            }
+        } else {
+            // Default to HQ or first city if none specified
+            if (citySelect.options.length > 1) {
+                citySelect.selectedIndex = 1;
+            }
+        }
+    }
+    
+    // 4. Update map highlight
+    document.querySelectorAll('.district-path').forEach(p => p.classList.remove('selected'));
     const districtPath = document.querySelector(`[data-district="${districtId}"]`);
     if (districtPath) {
-        districtPath.click();
+        districtPath.classList.add('selected');
+    }
+}
+
+// Select district from map (for external calls)
+function selectDistrictFromMap(districtId, cityName, lat, lng) {
+    syncLocationDropdowns(districtId, cityName, lat, lng);
+    const district = telanganaMapDistricts[districtId];
+    if (district && typeof appState !== 'undefined') {
+        const citySelect = document.getElementById('citySelect');
+        const selectedCity = (citySelect && citySelect.value) ? citySelect.value : (cityName || district.name);
+        appState.selectedDistrict = { ...district, selectedCity: selectedCity };
+        appState.selectedRegion = { id: 'telangana', name: 'Telangana' };
+        appState.location = { lat: lat || district.lat, lng: lng || district.lng };
     }
 }
 
@@ -1261,3 +1345,6 @@ window.selectDistrictFromMap = selectDistrictFromMap;
 window.telanganaCities = telanganaCities;
 window.renderManualSelector = renderManualSelector;
 window.updateManualSelectorLabels = updateManualSelectorLabels;
+window.handleDistrictSelectChange = handleDistrictSelectChange;
+window.handleCitySelectChange = handleCitySelectChange;
+window.syncLocationDropdowns = syncLocationDropdowns;

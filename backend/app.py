@@ -1,941 +1,605 @@
+"""
+FarmGuard AI - Core Backend Application Server
+Powered by Open-Meteo High-Resolution Telemetry & Agronomic AI Decision Engine
+Aligned with PJTSAU (Prof. Jayashankar Telangana State Agricultural University) guidelines
+"""
+
+import os
+import sys
+import subprocess
+
+# Auto-switch to virtual environment Python if available and not already active
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
+venv_python = os.path.join(project_root, ".venv", "Scripts", "python.exe")
+if os.path.exists(venv_python) and os.path.abspath(sys.executable).lower() != os.path.abspath(venv_python).lower():
+    sys.exit(subprocess.call([venv_python] + sys.argv))
+
+from datetime import datetime, timezone
+import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from datetime import datetime
-import requests
-import os
 from dotenv import load_dotenv
-from ml_model import predict_frost_risk, get_model_info, train_frost_model
 
-# Load environment variables from .env file
+# Import local engines
+from weather_service import (
+    get_complete_weather_bundle,
+    get_current_weather,
+    get_hourly_forecast,
+    get_7day_forecast,
+    TELANGANA_DISTRICT_COORDS
+)
+from agronomy_engine import (
+    evaluate_spraying_window,
+    evaluate_irrigation_advisor,
+    evaluate_disease_pressure,
+    evaluate_harvesting_advisor,
+    CROP_PROFILES
+)
+from ml_model import predict_frost_risk, get_model_info
+
+# Initialize Flask with frontend static directory
 load_dotenv()
-
-app = Flask(__name__)
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 CORS(app)  # Enable CORS for all routes
 
-# Initialize ML model on startup
-train_frost_model()
 
-# AccuWeather API Configuration
-ACCUWEATHER_API_KEY = os.getenv("ACCUWEATHER_API_KEY")
-ACCUWEATHER_BASE_URL = "http://dataservice.accuweather.com"
+@app.route('/')
+def serve_index():
+    """Serve the single-page application frontend."""
+    return app.send_static_file('index.html')
 
-def get_location_key(lat=None, lon=None, city="Hyderabad"):
-    """Get AccuWeather location key for a city or coordinates"""
-    try:
-        if lat and lon:
-            url = f"{ACCUWEATHER_BASE_URL}/locations/v1/cities/geoposition/search"
-            params = {
-                "apikey": ACCUWEATHER_API_KEY,
-                "q": f"{lat},{lon}"
-            }
-        else:
-            url = f"{ACCUWEATHER_BASE_URL}/locations/v1/cities/search"
-            params = {
-                "apikey": ACCUWEATHER_API_KEY,
-                "q": city
-            }
-        
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        if isinstance(data, list) and len(data) > 0:
-            return data[0]["Key"], data[0]["LocalizedName"]
-        elif isinstance(data, dict):
-            return data["Key"], data["LocalizedName"]
-        return None, None
-    except Exception as e:
-        print(f"Error getting location: {e}")
-        return None, None
 
-def get_current_weather(location_key=None, city="Hyderabad", lat=None, lng=None):
-    """Get current weather conditions from AccuWeather API"""
-    try:
-        if not location_key:
-            location_key, city_name = get_location_key(city=city)
-            if not location_key:
-                return get_fallback_weather(lat=lat, lng=lng, district=city)
-        
-        # Get current conditions
-        url = f"{ACCUWEATHER_BASE_URL}/currentconditions/v1/{location_key}"
-        params = {
-            "apikey": ACCUWEATHER_API_KEY,
-            "details": "true"
-        }
-        
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        if data and len(data) > 0:
-            weather_data = data[0]
-            
-            # Map AccuWeather condition to simple condition
-            weather_text = weather_data.get("WeatherText", "").lower()
-            if "rain" in weather_text or "shower" in weather_text:
-                condition = "rainy"
-            elif "storm" in weather_text or "thunder" in weather_text:
-                condition = "stormy"
-            elif "wind" in weather_text:
-                condition = "windy"
-            elif "cloud" in weather_text or "overcast" in weather_text:
-                condition = "cloudy"
-            else:
-                condition = "sunny"
-            
-            return {
-                "temperature": weather_data.get("Temperature", {}).get("Metric", {}).get("Value", 25),
-                "humidity": weather_data.get("RelativeHumidity", 50),
-                "wind_speed": weather_data.get("Wind", {}).get("Speed", {}).get("Metric", {}).get("Value", 10),
-                "precipitation": weather_data.get("PrecipitationSummary", {}).get("Precipitation", {}).get("Metric", {}).get("Value", 0) or 0,
-                "condition": condition,
-                "uv_index": weather_data.get("UVIndex", 5),
-                "weather_text": weather_data.get("WeatherText", "Unknown"),
-                "source": "AccuWeather"
-            }
-    except Exception as e:
-        print(f"Error fetching weather from AccuWeather: {e}")
-    
-    return get_fallback_weather(lat=lat, lng=lng, district=city)
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon or return 204 No Content to prevent 404 console errors."""
+    favicon_path = os.path.join(FRONTEND_DIR, 'favicon.ico')
+    if os.path.exists(favicon_path):
+        return app.send_static_file('favicon.ico')
+    return ('', 204)
 
-def get_fallback_weather(lat=None, lng=None, district="Hyderabad"):
-    """Fallback weather data when API fails - location-aware simulation"""
-    import random
-    import hashlib
-    
-    # Create location-based seed for consistent results
-    location_str = f"{lat or 0:.2f}_{lng or 0:.2f}_{district}_{datetime.now().strftime('%Y-%m-%d')}"
-    seed_value = int(hashlib.md5(location_str.encode()).hexdigest(), 16) % 1000000
-    random.seed(seed_value)
-    
-    # Regional temperature adjustments based on typical Telangana climate
-    base_temp = 28  # Base temperature for Telangana region
-    
-    # Seasonal adjustment (February is moderately warm)
-    month = datetime.now().month
-    if month in [4, 5, 6]:  # Summer
-        base_temp = 38
-    elif month in [11, 12, 1]:  # Winter
-        base_temp = 22
-    elif month in [7, 8, 9]:  # Monsoon
-        base_temp = 28
-    
-    # Add location variation based on coordinates
-    if lat:
-        lat_val = float(lat)
-        if lat_val > 18:  # Northern districts tend to be slightly cooler
-            base_temp -= 2
-        if lat_val < 16:  # Southern districts slightly warmer
-            base_temp += 1
-    
-    temp = base_temp + random.uniform(-4, 4)
-    humidity = random.randint(30, 70)
-    
-    # Monsoon has higher humidity
-    if month in [7, 8, 9]:
-        humidity = random.randint(60, 90)
-    
-    # Determine condition based on probability
-    condition_roll = random.random()
-    if month in [7, 8, 9] and condition_roll < 0.4:  # Monsoon: 40% rain chance
-        condition = "rainy"
-    elif condition_roll < 0.15:  # 15% rain otherwise
-        condition = "rainy"
-    elif condition_roll < 0.25:
-        condition = "cloudy"
-    elif condition_roll < 0.35:
-        condition = "windy"
-    else:
-        condition = "sunny"
-    
-    result = {
-        "temperature": round(temp, 1),
-        "humidity": humidity,
-        "wind_speed": round(random.uniform(5, 25), 1),
-        "precipitation": round(random.uniform(0, 5) if condition == "rainy" else 0, 1),
-        "condition": condition,
-        "uv_index": random.randint(4, 9) if condition == "sunny" else random.randint(1, 5),
-        "weather_text": f"Simulated for {district}",
-        "source": f"Simulation ({district})"
-    }
-    
-    random.seed()  # Reset seed
-    return result
 
-def get_5day_forecast(location_key=None, city="Hyderabad", lat=None, lng=None):
-    """Get 5-day weather forecast from AccuWeather API"""
-    try:
-        if not location_key:
-            location_key, city_name = get_location_key(city=city)
-            if not location_key:
-                return get_fallback_forecast(lat=lat, lng=lng, district=city)
-        
-        url = f"{ACCUWEATHER_BASE_URL}/forecasts/v1/daily/5day/{location_key}"
-        params = {
-            "apikey": ACCUWEATHER_API_KEY,
-            "details": "true",
-            "metric": "true"
-        }
-        
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        forecasts = []
-        if data and "DailyForecasts" in data:
-            for day_data in data["DailyForecasts"]:
-                # Parse date
-                date_str = day_data.get("Date", "")[:10]
-                
-                # Get day conditions
-                day_weather = day_data.get("Day", {})
-                weather_text = day_weather.get("IconPhrase", "").lower()
-                
-                # Map to simple condition
-                if "rain" in weather_text or "shower" in weather_text:
-                    condition = "rainy"
-                elif "storm" in weather_text or "thunder" in weather_text:
-                    condition = "stormy"
-                elif "wind" in weather_text:
-                    condition = "windy"
-                elif "cloud" in weather_text or "overcast" in weather_text:
-                    condition = "cloudy"
-                else:
-                    condition = "sunny"
-                
-                forecasts.append({
-                    "date": date_str,
-                    "day_name": datetime.strptime(date_str, "%Y-%m-%d").strftime("%A"),
-                    "temp_min": day_data.get("Temperature", {}).get("Minimum", {}).get("Value", 20),
-                    "temp_max": day_data.get("Temperature", {}).get("Maximum", {}).get("Value", 30),
-                    "humidity": day_data.get("Day", {}).get("RelativeHumidity", {}).get("Average", 50),
-                    "precipitation_probability": day_data.get("Day", {}).get("PrecipitationProbability", 0),
-                    "precipitation_mm": day_data.get("Day", {}).get("TotalLiquid", {}).get("Value", 0),
-                    "wind_speed": day_data.get("Day", {}).get("Wind", {}).get("Speed", {}).get("Value", 10),
-                    "condition": condition,
-                    "weather_text": day_weather.get("IconPhrase", "Unknown"),
-                    "uv_index": day_data.get("AirAndPollen", [{}])[0].get("Value", 5) if day_data.get("AirAndPollen") else 5
-                })
-        
-        return forecasts if forecasts else get_fallback_forecast(lat=lat, lng=lng, district=city)
-    except Exception as e:
-        print(f"Error fetching 5-day forecast: {e}")
-        return get_fallback_forecast(lat=lat, lng=lng, district=city)
-
-def get_fallback_forecast(lat=None, lng=None, district="Hyderabad"):
-    """Generate fallback 7-day forecast data - location-aware"""
-    import random
-    from datetime import timedelta
-    import hashlib
-    
-    # Create a seed based on current date AND location for consistent but unique forecasts
-    location_str = f"{lat or 0:.2f}_{lng or 0:.2f}_{district}_{datetime.now().strftime('%Y-%m-%d')}"
-    seed_value = int(hashlib.md5(location_str.encode()).hexdigest(), 16) % 1000000
-    random.seed(seed_value)
-    
-    forecasts = []
-    
-    # Seasonal temperature base (Telangana climate)
-    month = datetime.now().month
-    if month in [4, 5, 6]:  # Summer - hot
-        base_temp = 38
-        rain_chance = 0.15
-        conditions_weights = {"sunny": 0.6, "cloudy": 0.2, "windy": 0.1, "rainy": 0.1}
-    elif month in [7, 8, 9, 10]:  # Monsoon - rainy
-        base_temp = 28
-        rain_chance = 0.6
-        conditions_weights = {"rainy": 0.4, "cloudy": 0.3, "sunny": 0.2, "windy": 0.1}
-    elif month in [11, 12, 1, 2]:  # Winter - mild
-        base_temp = 24
-        rain_chance = 0.1
-        conditions_weights = {"sunny": 0.5, "cloudy": 0.3, "windy": 0.15, "rainy": 0.05}
-    else:  # March - transition
-        base_temp = 32
-        rain_chance = 0.2
-        conditions_weights = {"sunny": 0.5, "cloudy": 0.25, "windy": 0.15, "rainy": 0.1}
-    
-    # Add location variation
-    if lat:
-        lat_val = float(lat) if lat else 17.5
-        if lat_val > 18:  # Northern districts
-            base_temp -= 2
-        elif lat_val < 16:  # Southern districts
-            base_temp += 1
-    
-    for i in range(7):
-        date = datetime.now() + timedelta(days=i)
-        
-        # Daily temperature variation
-        day_temp = base_temp + random.uniform(-3, 3)
-        
-        # Choose condition based on weights
-        condition = random.choices(
-            list(conditions_weights.keys()), 
-            weights=list(conditions_weights.values())
-        )[0]
-        
-        # Set precipitation based on condition
-        if condition == "rainy":
-            precip_prob = random.randint(60, 95)
-            precip_mm = random.uniform(5, 25)
-        elif condition == "cloudy":
-            precip_prob = random.randint(20, 50)
-            precip_mm = random.uniform(0, 5)
-        else:
-            precip_prob = random.randint(0, 20)
-            precip_mm = 0
-        
-        forecasts.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "day_name": date.strftime("%A"),
-            "temp_min": round(day_temp - random.uniform(4, 8), 1),
-            "temp_max": round(day_temp + random.uniform(4, 8), 1),
-            "humidity": random.randint(45, 85) if condition != "rainy" else random.randint(70, 95),
-            "precipitation_probability": precip_prob,
-            "precipitation_mm": round(precip_mm, 1),
-            "wind_speed": random.randint(5, 30) if condition != "windy" else random.randint(25, 45),
-            "condition": condition,
-            "weather_text": f"Simulated - {district}",
-            "uv_index": random.randint(6, 10) if condition == "sunny" else random.randint(2, 6)
-        })
-    
-    # Reset seed for other random operations
-    random.seed()
-    return forecasts
-
-def generate_weekly_recommendations(forecasts, crop_id=None):
-    """Generate smart weekly recommendations based on 7-day forecast"""
+def generate_weekly_recommendations(forecast, crop_id=None, spray_data=None, irrig_data=None, harvest_data=None):
+    """
+    Generate farmer-friendly action items for Today and the Upcoming Week.
+    Matches the schema expected by the frontend's renderSmartRecommendations().
+    """
     recommendations = []
-    
-    # Analyze patterns
-    rainy_days = [f for f in forecasts if f["condition"] == "rainy" or f["precipitation_probability"] > 60]
-    hot_days = [f for f in forecasts if f["temp_max"] > 35]
-    cold_days = [f for f in forecasts if f["temp_min"] < 10]
-    windy_days = [f for f in forecasts if f["wind_speed"] > 20]
-    good_days = [f for f in forecasts if f["condition"] in ["sunny", "partly_cloudy"] and f["wind_speed"] < 15 and f["precipitation_probability"] < 30]
-    
-    # Find best days for activities
-    best_irrigation_days = []
-    best_spraying_days = []
-    best_harvesting_days = []
-    
-    for i, f in enumerate(forecasts):
-        # Irrigation: avoid rainy days, prefer before rain
-        if f["precipitation_probability"] < 40 and f["humidity"] < 80:
-            # Check if rain coming in 1-2 days (skip irrigation)
-            upcoming_rain = any(forecasts[j]["precipitation_probability"] > 60 for j in range(i, min(i+2, len(forecasts))))
-            if not upcoming_rain:
-                best_irrigation_days.append(f)
-        
-        # Spraying: no rain, low wind, moderate temp
-        if f["precipitation_probability"] < 20 and f["wind_speed"] < 15 and 15 < f["temp_max"] < 35:
-            best_spraying_days.append(f)
-        
-        # Harvesting: dry conditions, low humidity
-        if f["condition"] in ["sunny", "partly_cloudy", "cloudy"] and f["precipitation_probability"] < 25 and f["humidity"] < 75:
-            best_harvesting_days.append(f)
-    
-    # Generate visual recommendations
-    today = forecasts[0] if forecasts else None
-    tomorrow = forecasts[1] if len(forecasts) > 1 else None
-    
-    # TODAY's recommendations
-    if today:
-        # Irrigation today
-        if today["precipitation_probability"] > 60:
+    today = forecast[0] if forecast else {}
+    tomorrow = forecast[1] if len(forecast) > 1 else {}
+
+    # 1. Irrigation Recommendation for Today
+    if irrig_data:
+        action_type = irrig_data.get("action")
+        if action_type == "POSTPONE":
             recommendations.append({
                 "type": "irrigation",
                 "action": "dont",
                 "emoji": "🚫💧",
                 "urgency": "today",
-                "day": "Today",
                 "title_key": "skipIrrigationToday",
                 "reason_key": "rainExpected",
-                "visual_indicator": "red"
+                "visual_indicator": "red",
+                "custom_text": irrig_data.get("headline"),
+                "reasons": irrig_data.get("reasons", [])
             })
-        elif tomorrow and tomorrow["precipitation_probability"] > 70:
+        elif action_type == "DELAY":
             recommendations.append({
                 "type": "irrigation",
-                "action": "dont",
-                "emoji": "⏸️💧",
+                "action": "caution",
+                "emoji": "⏳💧",
                 "urgency": "today",
-                "day": "Today",
                 "title_key": "skipIrrigationRainTomorrow",
-                "reason_key": "rainTomorrow",
-                "visual_indicator": "yellow"
+                "reason_key": "highHumidity",
+                "visual_indicator": "yellow",
+                "custom_text": irrig_data.get("headline"),
+                "reasons": irrig_data.get("reasons", [])
             })
-        elif today["humidity"] < 70 and today["precipitation_probability"] < 30:
+        else:
             recommendations.append({
                 "type": "irrigation",
-                "action": "do",
+                "action": "safe",
                 "emoji": "✅💧",
                 "urgency": "today",
-                "day": "Today",
                 "title_key": "irrigateToday",
                 "reason_key": "goodConditions",
-                "best_time": "5-8 AM" if today["temp_max"] > 30 else "Anytime",
-                "visual_indicator": "green"
+                "visual_indicator": "green",
+                "custom_text": irrig_data.get("headline"),
+                "best_time": irrig_data.get("best_window")
             })
-        
-        # Spraying today
-        if today["wind_speed"] > 15:
+
+    # 2. Spraying Recommendation for Today
+    if spray_data:
+        spray_status = spray_data.get("status")
+        best_win = spray_data.get("best_window", {}).get("window_text", "Morning")
+
+        if spray_status == "UNSUITABLE":
+            # Determine reason key
+            r_keys = [r["key"] for r in spray_data.get("reasons", [])]
+            reason_key = "windyConditions" if any("wind" in k.lower() for k in r_keys) else "rainWashOff"
+            title_key = "noSprayingWind" if "wind" in reason_key else "noSprayingRain"
+
             recommendations.append({
                 "type": "spraying",
                 "action": "dont",
                 "emoji": "🚫🧪",
                 "urgency": "today",
-                "day": "Today",
-                "title_key": "noSprayingWind",
-                "reason_key": "windyConditions",
-                "visual_indicator": "red"
+                "title_key": title_key,
+                "reason_key": reason_key,
+                "visual_indicator": "red",
+                "best_window": best_win,
+                "reasons": [r["text"] for r in spray_data.get("reasons", [])]
             })
-        elif today["precipitation_probability"] > 40:
+        elif spray_status == "CAUTION":
             recommendations.append({
                 "type": "spraying",
-                "action": "dont",
-                "emoji": "🚫🧪",
+                "action": "caution",
+                "emoji": "⚠️🧪",
                 "urgency": "today",
-                "day": "Today",
-                "title_key": "noSprayingRain",
-                "reason_key": "rainWashOff",
-                "visual_indicator": "red"
-            })
-        elif today["wind_speed"] < 10 and today["precipitation_probability"] < 20:
-            recommendations.append({
-                "type": "spraying",
-                "action": "do",
-                "emoji": "✅🧪",
-                "urgency": "today",
-                "day": "Today",
                 "title_key": "sprayToday",
                 "reason_key": "calmConditions",
-                "best_time": "6-10 AM",
-                "visual_indicator": "green"
+                "visual_indicator": "yellow",
+                "best_window": best_win,
+                "reasons": [r["text"] for r in spray_data.get("reasons", [])]
             })
-        
-        # Harvesting today
-        if today["condition"] in ["rainy", "stormy"]:
+        else:
+            recommendations.append({
+                "type": "spraying",
+                "action": "safe",
+                "emoji": "✅🧪",
+                "urgency": "today",
+                "title_key": "sprayToday",
+                "reason_key": "optimalConditions",
+                "visual_indicator": "green",
+                "best_window": best_win,
+                "reasons": ["Optimal wind speed, humidity, and clear weather window."]
+            })
+
+    # 3. Harvesting Recommendation for Today
+    if harvest_data:
+        if not harvest_data.get("suitable"):
             recommendations.append({
                 "type": "harvesting",
                 "action": "dont",
-                "emoji": "🚫🚜",
+                "emoji": harvest_data.get("emoji", "🚫🌾"),
                 "urgency": "today",
-                "day": "Today",
                 "title_key": "noHarvestRain",
                 "reason_key": "wetConditions",
-                "visual_indicator": "red"
+                "visual_indicator": "red",
+                "reasons": harvest_data.get("reasons", [])
             })
-        elif today["humidity"] > 80:
+        else:
             recommendations.append({
                 "type": "harvesting",
-                "action": "wait",
-                "emoji": "⏳🚜",
+                "action": "safe",
+                "emoji": harvest_data.get("emoji", "✅🌾"),
                 "urgency": "today",
-                "day": "Today",
-                "title_key": "waitHarvestHumidity",
-                "reason_key": "highHumidity",
-                "best_time": "After 10 AM when dew evaporates",
-                "visual_indicator": "yellow"
-            })
-        elif today["condition"] in ["sunny", "partly_cloudy"] and today["humidity"] < 70:
-            recommendations.append({
-                "type": "harvesting",
-                "action": "do",
-                "emoji": "✅🚜",
-                "urgency": "today",
-                "day": "Today",
                 "title_key": "harvestToday",
                 "reason_key": "perfectConditions",
-                "visual_indicator": "green"
+                "visual_indicator": "green",
+                "reasons": harvest_data.get("reasons", [])
             })
-    
-    # WEEKLY outlook recommendations
-    if len(rainy_days) >= 3:
+
+    # 4. Weekly Plan-Ahead Alerts
+    # Check for heatwave (any day > 38°C)
+    heat_days = [d for d in forecast if d.get("temp_max", 0) > 38]
+    if heat_days:
         recommendations.append({
-            "type": "weather_alert",
+            "type": "plan_ahead",
             "action": "alert",
-            "emoji": "🌧️⚠️",
+            "emoji": "🔥🛡️",
             "urgency": "week",
-            "day": "This Week",
-            "title_key": "rainyWeekAlert",
-            "reason_key": "multipleRainyDays",
-            "details": f"{len(rainy_days)} rainy days expected",
-            "visual_indicator": "blue"
-        })
-    
-    if len(hot_days) >= 2:
-        recommendations.append({
-            "type": "weather_alert",
-            "action": "alert",
-            "emoji": "🔥⚠️",
-            "urgency": "week",
-            "day": "This Week",
+            "day": heat_days[0].get("day_name", "Later this week"),
             "title_key": "heatWaveAlert",
             "reason_key": "highTemperatures",
-            "details": f"{len(hot_days)} very hot days (>35°C)",
-            "visual_indicator": "orange"
+            "visual_indicator": "yellow"
         })
-    
-    if len(cold_days) >= 1:
+
+    # Check for heavy rain days
+    rain_days = [d for d in forecast if d.get("precipitation_probability", 0) > 60]
+    if len(rain_days) >= 2:
         recommendations.append({
-            "type": "frost_alert",
+            "type": "plan_ahead",
             "action": "alert",
-            "emoji": "❄️🚨",
+            "emoji": "🌧️📅",
             "urgency": "week",
-            "day": "This Week",
-            "title_key": "coldNightAlert",
-            "reason_key": "frostRisk",
-            "details": f"{len(cold_days)} cold days (<10°C)",
-            "visual_indicator": "purple"
+            "day": "Multiple Days",
+            "title_key": "rainyWeekAlert",
+            "reason_key": "multipleRainyDays",
+            "visual_indicator": "yellow"
         })
-    
-    # Best days suggestions
+
+    # Best upcoming day for spraying
+    best_spraying_days = [
+        d for d in forecast[1:]
+        if d.get("precipitation_probability", 0) < 20 and d.get("wind_speed", 0) < 15 and d.get("temp_max", 0) < 34
+    ]
     if best_spraying_days:
         best_day = best_spraying_days[0]
-        if best_day != today:
-            recommendations.append({
-                "type": "plan_ahead",
-                "action": "plan",
-                "emoji": "📅🧪",
-                "urgency": "plan",
-                "day": best_day["day_name"],
-                "title_key": "bestSprayingDay",
-                "reason_key": "optimalConditions",
-                "visual_indicator": "green"
-            })
-    
-    if best_harvesting_days and len(best_harvesting_days) > 0:
-        best_day = best_harvesting_days[0]
-        if best_day != today:
-            recommendations.append({
-                "type": "plan_ahead",
-                "action": "plan",
-                "emoji": "📅🚜",
-                "urgency": "plan",
-                "day": best_day["day_name"],
-                "title_key": "bestHarvestingDay",
-                "reason_key": "dryConditions",
-                "visual_indicator": "green"
-            })
-    
+        recommendations.append({
+            "type": "plan_ahead",
+            "action": "plan",
+            "emoji": "📅🧪",
+            "urgency": "plan",
+            "day": best_day.get("day_name"),
+            "title_key": "bestSprayingDay",
+            "reason_key": "optimalConditions",
+            "visual_indicator": "green"
+        })
+
     return recommendations
 
-def get_crop_specific_tips(crop_id, weather, forecast):
-    """Generate crop-specific recommendations"""
+
+def build_crop_tips(crop_id, weather, forecast):
+    """Generate agronomic tips based on crop and upcoming weather."""
     tips = []
-    
-    crop_info = {
-        "rice": {"water_need": "high", "frost_sensitive": True, "heat_tolerant": True},
-        "wheat": {"water_need": "medium", "frost_sensitive": True, "heat_tolerant": False},
-        "corn": {"water_need": "high", "frost_sensitive": True, "heat_tolerant": True},
-        "cotton": {"water_need": "medium", "frost_sensitive": True, "heat_tolerant": True},
-        "sugarcane": {"water_need": "high", "frost_sensitive": False, "heat_tolerant": True},
-        "tomato": {"water_need": "medium", "frost_sensitive": True, "heat_tolerant": False},
-        "potato": {"water_need": "medium", "frost_sensitive": True, "heat_tolerant": False},
-        "onion": {"water_need": "low", "frost_sensitive": False, "heat_tolerant": True},
-        "chili": {"water_need": "medium", "frost_sensitive": True, "heat_tolerant": True},
-        "mango": {"water_need": "low", "frost_sensitive": True, "heat_tolerant": True},
-        "banana": {"water_need": "high", "frost_sensitive": True, "heat_tolerant": True},
-        "groundnut": {"water_need": "low", "frost_sensitive": False, "heat_tolerant": True}
-    }
-    
-    crop = crop_info.get(crop_id, {"water_need": "medium", "frost_sensitive": True, "heat_tolerant": True})
-    
-    # Water-related tips
-    if crop["water_need"] == "high" and weather["humidity"] < 50:
+    crop_info = CROP_PROFILES.get(crop_id, {})
+    if not crop_info:
+        return tips
+
+    curr_hum = weather.get("humidity", 50)
+    water_need = crop_info.get("water_need", "medium")
+
+    if water_need == "high" and curr_hum < 45:
         tips.append({
             "emoji": "💧🌾",
             "tip_key": "highWaterCropDry",
             "urgency": "high"
         })
-    
-    if crop["water_need"] == "low" and any(f["precipitation_probability"] > 70 for f in forecast[:3]):
+
+    if water_need == "low" and any(f.get("precipitation_probability", 0) > 60 for f in forecast[:3]):
         tips.append({
             "emoji": "🚫💧",
             "tip_key": "lowWaterCropRain",
             "urgency": "medium"
         })
-    
-    # Temperature tips
-    if crop["frost_sensitive"] and any(f["temp_min"] < 10 for f in forecast[:3]):
+
+    if crop_info.get("frost_sensitive") and any(f.get("temp_min", 20) < 10 for f in forecast[:3]):
         tips.append({
             "emoji": "❄️🛡️",
             "tip_key": "frostProtectionNeeded",
             "urgency": "high"
         })
-    
-    if not crop["heat_tolerant"] and any(f["temp_max"] > 38 for f in forecast[:3]):
+
+    if any(f.get("temp_max", 30) > 38 for f in forecast[:3]):
         tips.append({
             "emoji": "🌡️🛡️",
             "tip_key": "heatProtectionNeeded",
             "urgency": "high"
         })
-    
+
     return tips
 
-def evaluate_irrigation(weather):
-    """Evaluate if weather is suitable for irrigation"""
-    suitable = True
-    reasons = []
-    
-    if weather["precipitation"] > 5:
-        suitable = False
-        reasons.append("Recent rainfall detected - irrigation not needed")
-    if weather["humidity"] > 80:
-        suitable = False
-        reasons.append("High humidity - soil moisture likely sufficient")
-    if weather["wind_speed"] > 25:
-        suitable = False
-        reasons.append("High wind speed may cause uneven water distribution")
-    if weather["temperature"] > 35:
-        reasons.append("High temperature - consider irrigating early morning or evening")
-    
-    if suitable and not reasons:
-        reasons.append("Weather conditions are optimal for irrigation")
-    
-    return {
-        "activity": "Irrigation",
-        "suitable": suitable,
-        "status": "RECOMMENDED" if suitable else "NOT RECOMMENDED",
-        "reasons": reasons,
-        "best_time": "Early morning (5-8 AM) or evening (6-8 PM)" if weather["temperature"] > 30 else "Anytime during daylight"
-    }
 
-def evaluate_spraying(weather):
-    """Evaluate if weather is suitable for pesticide/fertilizer spraying"""
-    suitable = True
-    reasons = []
-    
-    if weather["wind_speed"] > 15:
-        suitable = False
-        reasons.append("Wind speed too high - spray drift risk")
-    if weather["precipitation"] > 0 or weather["condition"] == "rainy":
-        suitable = False
-        reasons.append("Rain expected - spray will wash off")
-    if weather["humidity"] > 85:
-        suitable = False
-        reasons.append("High humidity - reduced spray effectiveness")
-    if weather["humidity"] < 40:
-        suitable = False
-        reasons.append("Low humidity - rapid evaporation of spray")
-    if weather["temperature"] > 35:
-        suitable = False
-        reasons.append("Temperature too high - risk of plant damage")
-    if weather["temperature"] < 10:
-        suitable = False
-        reasons.append("Temperature too low - reduced effectiveness")
-    
-    if suitable and not reasons:
-        reasons.append("Weather conditions are optimal for spraying")
-    
-    return {
-        "activity": "Spraying (Pesticides/Fertilizers)",
-        "suitable": suitable,
-        "status": "RECOMMENDED" if suitable else "NOT RECOMMENDED",
-        "reasons": reasons,
-        "best_time": "Early morning (6-10 AM) when wind is calm"
-    }
-
-def evaluate_harvesting(weather):
-    """Evaluate if weather is suitable for harvesting"""
-    suitable = True
-    reasons = []
-    
-    if weather["precipitation"] > 2 or weather["condition"] == "rainy":
-        suitable = False
-        reasons.append("Rain expected - wet crops are harder to harvest and store")
-    if weather["wind_speed"] > 30:
-        suitable = False
-        reasons.append("Very high wind speed - risk to crops and equipment")
-    if weather["humidity"] > 85:
-        reasons.append("High humidity - ensure proper drying after harvest")
-    if weather["temperature"] > 40:
-        reasons.append("Very high temperature - start early morning to avoid heat stress")
-    if weather["temperature"] < 5:
-        suitable = False
-        reasons.append("Temperature too low - crops may be brittle")
-    
-    if suitable and not reasons:
-        reasons.append("Weather conditions are optimal for harvesting")
-    
-    return {
-        "activity": "Harvesting",
-        "suitable": suitable,
-        "status": "RECOMMENDED" if suitable else "NOT RECOMMENDED",
-        "reasons": reasons,
-        "best_time": "Early morning (6-9 AM) when crops are dry but cool"
-    }
-
-def build_week_summary(weekly_recommendations, forecast):
-    """Build week analysis from recommendations data"""
-    # Count weather alerts from recommendations
-    rainy_days = len([r for r in weekly_recommendations if r.get("title_key") == "rainyWeekAlert"])
-    heat_alerts = len([r for r in weekly_recommendations if r.get("title_key") == "heatWaveAlert"])
-    cold_alerts = len([r for r in weekly_recommendations if r.get("title_key") == "coldNightAlert"])
-    
-    # Count best days for activities
-    best_activity_days = len([r for r in weekly_recommendations if r.get("urgency") == "plan"])
-    
-    # Get total rain expected and average temp from forecast
-    total_rain = sum(f["precipitation_mm"] for f in forecast) if forecast else 0
-    avg_temp = round(sum(f["temp_max"] for f in forecast) / len(forecast), 1) if forecast else 0
-    
-    return {
-        "weather_alerts": rainy_days + heat_alerts + cold_alerts,
-        "best_activity_days": best_activity_days,
-        "total_expected_rain": round(total_rain, 1),
-        "average_temp": avg_temp,
-        "today_actions": len([r for r in weekly_recommendations if r.get("urgency") == "today"])
-    }
-    """Evaluate if weather is suitable for harvesting"""
-    suitable = True
-    reasons = []
-    
-    if weather["condition"] in ["rainy", "stormy"]:
-        suitable = False
-        reasons.append("Wet conditions - risk of crop damage and spoilage")
-    if weather["precipitation"] > 2:
-        suitable = False
-        reasons.append("Rain detected - harvest quality may be affected")
-    if weather["humidity"] > 80:
-        suitable = False
-        reasons.append("High humidity - increased risk of mold and rot")
-    if weather["wind_speed"] > 40:
-        suitable = False
-        reasons.append("Strong winds - unsafe working conditions")
-    
-    if suitable and not reasons:
-        reasons.append("Weather conditions are optimal for harvesting")
-    
-    return {
-        "activity": "Harvesting",
-        "suitable": suitable,
-        "status": "RECOMMENDED" if suitable else "NOT RECOMMENDED",
-        "reasons": reasons,
-        "best_time": "Mid-morning to afternoon when dew has evaporated"
-    }
+# ==========================================
+# API ROUTES
+# ==========================================
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint for the Weather Alert Farming System"""
+    """Health check endpoint."""
     return jsonify({
         "status": "healthy",
-        "service": "Weather Alert Farming System",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "2.0.0"
+        "service": "FarmGuard AI - Real-Time Smart Farming Weather & Alert System",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": "3.0.0",
+        "weather_provider": "Open-Meteo High-Resolution Global & Regional Telemetry",
+        "agronomy_framework": "PJTSAU Telangana Agricultural Guidelines",
+        "supported_districts": len(TELANGANA_DISTRICT_COORDS)
     }), 200
+
+
+@app.route('/reverse-geocode', methods=['GET'])
+def reverse_geocode_endpoint():
+    """
+    Reverse geocodes lat/lng coordinates to locality, district, state.
+    Provides server-side geocoding proxy to avoid browser CORS and rate limits.
+    """
+    lat_str = request.args.get('lat')
+    lng_str = request.args.get('lng')
+    if not lat_str or not lng_str:
+        return jsonify({"status": "error", "message": "Missing lat or lng parameter"}), 400
+
+    try:
+        lat = float(lat_str)
+        lng = float(lng_str)
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid lat or lng parameter"}), 400
+
+    town = ""
+    district = ""
+    state = ""
+    country = ""
+
+    # Strategy 1: BigDataCloud Reverse Geocoding API (Fast, reliable, structured administrative data)
+    try:
+        bdc_url = f"https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={lat}&longitude={lng}&localityLanguage=en"
+        resp = requests.get(bdc_url, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            town = data.get("locality") or data.get("city") or ""
+            state = data.get("principalSubdivision") or ""
+            country = data.get("countryName") or ""
+
+            # Check administrative hierarchy for district
+            locality_info = data.get("localityInfo", {}).get("administrative", [])
+            for item in locality_info:
+                admin_level = item.get("adminLevel")
+                if admin_level in [6, 5]:
+                    name = item.get("name", "")
+                    if name and not district:
+                        district = name.replace(" District", "").replace(" district", "").strip()
+
+            if not district:
+                district = town
+    except Exception as e:
+        print(f"[ReverseGeocode] BigDataCloud error: {e}")
+
+    # Strategy 2: OpenStreetMap Nominatim Fallback
+    if not state or not district:
+        try:
+            nom_url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json"
+            headers = {"User-Agent": "FarmGuardAI-SmartFarming/3.0"}
+            resp = requests.get(nom_url, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                addr = data.get("address", {})
+                if not town:
+                    town = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("suburb") or addr.get("county") or ""
+                if not district:
+                    district = (addr.get("state_district") or addr.get("county") or "").replace(" District", "").strip()
+                if not state:
+                    state = addr.get("state", "")
+                if not country:
+                    country = addr.get("country", "")
+        except Exception as e:
+            print(f"[ReverseGeocode] Nominatim error: {e}")
+
+    # Determine if location is in Telangana
+    is_telangana = False
+    if state and "telangana" in state.lower():
+        is_telangana = True
+    elif not state:
+        # Geographic bounding box of Telangana: ~15.8 - 19.9°N, 77.2 - 81.3°E
+        if 15.8 <= lat <= 19.9 and 77.2 <= lng <= 81.3:
+            is_telangana = True
+            state = "Telangana"
+
+    # Construct clean formatted address
+    parts = [p for p in [town, district, state] if p]
+    formatted = ", ".join(parts) if parts else f"{lat:.4f}°N, {lng:.4f}°E"
+
+    return jsonify({
+        "status": "success",
+        "lat": lat,
+        "lng": lng,
+        "town": town,
+        "district": district,
+        "state": state,
+        "country": country,
+        "is_telangana": is_telangana,
+        "formatted": formatted
+    }), 200
+
 
 @app.route('/weather', methods=['GET'])
 def get_weather():
-    """Get current weather conditions"""
-    weather = get_current_weather()
-    weather["timestamp"] = datetime.utcnow().isoformat()
+    """Get real-time current weather."""
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    district = request.args.get('district')
+    if not district and not (lat and lng):
+        district = 'Hyderabad'
+    weather = get_current_weather(lat=lat, lng=lng, district=district)
     return jsonify(weather), 200
+
 
 @app.route('/forecast', methods=['GET'])
 def get_forecast():
-    """Get 7-day weather forecast with smart recommendations"""
-    crop_id = request.args.get('crop', None)
-    
-    # Get current weather
-    weather = get_current_weather()
-    
-    # Get forecast
-    forecast = get_5day_forecast()
-    
-    # If we only got 5 days, extend to 7 with the fallback
-    if len(forecast) < 7:
-        fallback = get_fallback_forecast()
-        for i in range(len(forecast), 7):
-            if i < len(fallback):
-                forecast.append(fallback[i])
-    
-    # Generate smart weekly recommendations
-    weekly_recommendations = generate_weekly_recommendations(forecast, crop_id)
-    
-    # Generate crop-specific tips
-    crop_tips = get_crop_specific_tips(crop_id, weather, forecast) if crop_id else []
-    
-    return jsonify({
-        "timestamp": datetime.utcnow().isoformat(),
-        "current_weather": weather,
-        "forecast": forecast,
-        "weekly_recommendations": weekly_recommendations,
-        "crop_tips": crop_tips,
-        "analysis": {
-            "rainy_days": len([f for f in forecast if f["condition"] == "rainy" or f["precipitation_probability"] > 60]),
-            "sunny_days": len([f for f in forecast if f["condition"] in ["sunny", "partly_cloudy"]]),
-            "average_temp": round(sum(f["temp_max"] for f in forecast) / len(forecast), 1) if forecast else 0,
-            "total_expected_rain": round(sum(f["precipitation_mm"] for f in forecast), 1) if forecast else 0
-        }
-    }), 200
+    """Get 7-day forecast."""
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    district = request.args.get('district')
+    if not district and not (lat and lng):
+        district = 'Hyderabad'
+    forecast = get_7day_forecast(lat=lat, lng=lng, district=district)
+    return jsonify({"forecast": forecast}), 200
+
 
 @app.route('/alerts', methods=['GET'])
 def get_farming_alerts():
-    """Get weather-based alerts for farming activities"""
-    crop_id = request.args.get('crop', None)
-    lat = request.args.get('lat', None)
-    lng = request.args.get('lng', None)
-    district = request.args.get('district', 'Hyderabad')
-    
-    # Parse lat/lng to float
-    lat_float = None
-    lng_float = None
-    if lat and lng:
-        try:
-            lat_float = float(lat)
-            lng_float = float(lng)
-        except (ValueError, TypeError):
-            pass
-    
-    # Get location key based on coordinates or district name
-    location_key = None
-    if lat_float and lng_float:
-        location_key, _ = get_location_key(lat=lat_float, lon=lng_float)
-    
-    if not location_key:
-        location_key, _ = get_location_key(city=district)
-    
-    # Fetch weather data using location-specific key AND coordinates for fallback
-    weather = get_current_weather(location_key=location_key, city=district, lat=lat_float, lng=lng_float)
-    forecast = get_5day_forecast(location_key=location_key, city=district, lat=lat_float, lng=lng_float)
-    
-    # Extend forecast to 7 days if needed
-    if len(forecast) < 7:
-        fallback = get_fallback_forecast(lat=lat_float, lng=lng_float, district=district)
-        for i in range(len(forecast), 7):
-            if i < len(fallback):
-                forecast.append(fallback[i])
-    
-    # Get frost risk prediction from ML model
+    """
+    Primary endpoint requested by the frontend.
+    Returns complete real-time bundle: current weather, 7-day forecast,
+    smart spray windows, irrigation advisory, disease pressure, and frost prediction.
+    """
+    crop_id = request.args.get('crop', 'rice')
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    district = request.args.get('district')
+    if not district and not (lat and lng):
+        district = 'Hyderabad'
+
+    # Fetch complete live meteorological bundle
+    bundle = get_complete_weather_bundle(lat=lat, lng=lng, district=district)
+    current_weather = bundle["current"]
+    hourly = bundle["hourly"]
+    daily = bundle["daily"]
+
+    # Run Agronomy Engines
+    spray_eval = evaluate_spraying_window(current_weather, hourly)
+    irrig_eval = evaluate_irrigation_advisor(current_weather, daily, crop_id=crop_id)
+    disease_eval = evaluate_disease_pressure(current_weather, hourly, crop_id=crop_id)
+    harvest_eval = evaluate_harvesting_advisor(current_weather, daily)
+
+    # Run ML Frost / Cold Stress Model
     frost_prediction = predict_frost_risk(
-        temperature=weather["temperature"],
-        humidity=weather["humidity"]
+        temperature=current_weather["temperature"],
+        humidity=current_weather["humidity"]
     )
-    
-    # Generate smart recommendations
-    weekly_recommendations = generate_weekly_recommendations(forecast, crop_id)
-    crop_tips = get_crop_specific_tips(crop_id, weather, forecast) if crop_id else []
-    
-    # Build week analysis from recommendations
-    week_analysis = build_week_summary(weekly_recommendations, forecast)
-    
-    alerts = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "current_weather": {
-            "temperature": f"{weather['temperature']}°C",
-            "temperature_value": weather['temperature'],
-            "humidity": f"{weather['humidity']}%",
-            "humidity_value": weather['humidity'],
-            "wind_speed": f"{weather['wind_speed']} km/h",
-            "wind_speed_value": weather['wind_speed'],
-            "precipitation": f"{weather['precipitation']:.1f} mm",
-            "condition": weather["condition"],
-            "uv_index": weather["uv_index"]
+
+    # Build weekly recommendations & crop tips
+    weekly_recs = generate_weekly_recommendations(
+        daily,
+        crop_id=crop_id,
+        spray_data=spray_eval,
+        irrig_data=irrig_eval,
+        harvest_data=harvest_eval
+    )
+    crop_tips = build_crop_tips(crop_id, current_weather, daily)
+
+    # Activity alerts formatted for frontend summary
+    activity_alerts = [
+        {
+            "activity": "Irrigation",
+            "suitable": irrig_eval.get("action") == "RECOMMENDED",
+            "status": irrig_eval.get("status"),
+            "reasons": irrig_eval.get("reasons", []),
+            "best_time": irrig_eval.get("best_window")
         },
-        "forecast": forecast[:7],
+        {
+            "activity": "Spraying (Pesticides/Fertilizers)",
+            "suitable": spray_eval.get("is_safe_now", False),
+            "status": spray_eval.get("status"),
+            "reasons": [r["text"] for r in spray_eval.get("reasons", [])],
+            "best_time": spray_eval.get("best_window", {}).get("window_text", "Morning")
+        },
+        {
+            "activity": "Harvesting",
+            "suitable": harvest_eval.get("suitable", False),
+            "status": harvest_eval.get("status"),
+            "reasons": harvest_eval.get("reasons", []),
+            "best_time": "Morning (06:00 AM - 09:00 AM)"
+        }
+    ]
+
+    # Week analysis metrics
+    rainy_days = len([f for f in daily if f.get("condition") == "rainy" or f.get("precipitation_probability", 0) > 50])
+    sunny_days = len([f for f in daily if f.get("condition") in ["sunny", "partly_cloudy"]])
+    total_rain = round(sum(f.get("precipitation_mm", 0) for f in daily), 1)
+    avg_temp = round(sum(f.get("temp_max", 0) for f in daily) / len(daily), 1) if daily else 30.0
+
+    response_payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "location": {
+            "district": bundle["district"],
+            "lat": bundle["lat"],
+            "lng": bundle["lng"],
+            "source": current_weather.get("source", "Open-Meteo Live")
+        },
+        "current_weather": {
+            "temperature": f"{current_weather['temperature']}°C",
+            "temperature_value": current_weather['temperature'],
+            "humidity": f"{current_weather['humidity']}%",
+            "humidity_value": current_weather['humidity'],
+            "wind_speed": f"{current_weather['wind_speed']} km/h",
+            "wind_speed_value": current_weather['wind_speed'],
+            "precipitation": f"{current_weather['precipitation']:.1f} mm",
+            "condition": current_weather["condition"],
+            "weather_text": current_weather["weather_text"],
+            "icon": current_weather["icon"],
+            "uv_index": current_weather["uv_index"]
+        },
+        "forecast": daily,
+        "hourly_preview": hourly[:12],
+        "spray_window": spray_eval,
+        "irrigation_advisor": irrig_eval,
+        "disease_pressure": disease_eval,
+        "harvesting_advisor": harvest_eval,
         "frost_alert": {
             "risk_level": frost_prediction["risk_level"],
             "probability": f"{frost_prediction['frost_probability']}%",
             "recommendation": frost_prediction["recommendation"]
         },
-        "activity_alerts": [
-            evaluate_irrigation(weather),
-            evaluate_spraying(weather),
-            evaluate_harvesting(weather)
-        ],
-        "weekly_recommendations": weekly_recommendations,
+        "activity_alerts": activity_alerts,
+        "weekly_recommendations": weekly_recs,
         "crop_tips": crop_tips,
-        "week_analysis": week_analysis
+        "week_analysis": {
+            "weather_alerts": rainy_days,
+            "best_activity_days": len([r for r in weekly_recs if r.get("urgency") == "plan"]),
+            "total_expected_rain": total_rain,
+            "average_temp": avg_temp,
+            "today_actions": len([r for r in weekly_recs if r.get("urgency") == "today"])
+        }
     }
-    
-    return jsonify(alerts), 200
 
-@app.route('/alerts/<activity>', methods=['GET'])
-def get_activity_alert(activity):
-    """Get weather alert for a specific farming activity"""
-    weather = get_current_weather()
-    
-    activity_lower = activity.lower()
-    
-    if activity_lower == "irrigation":
-        alert = evaluate_irrigation(weather)
-    elif activity_lower == "spraying":
-        alert = evaluate_spraying(weather)
-    elif activity_lower == "harvesting":
-        alert = evaluate_harvesting(weather)
-    else:
-        return jsonify({
-            "error": "Invalid activity",
-            "valid_activities": ["irrigation", "spraying", "harvesting"]
-        }), 400
-    
-    return jsonify({
-        "timestamp": datetime.utcnow().isoformat(),
-        "current_weather": {
-            "temperature": f"{weather['temperature']}°C",
-            "humidity": f"{weather['humidity']}%",
-            "wind_speed": f"{weather['wind_speed']} km/h",
-            "precipitation": f"{weather['precipitation']:.1f} mm",
-            "condition": weather["condition"]
-        },
-        "alert": alert
-    }), 200
+    return jsonify(response_payload), 200
+
+
+@app.route('/spray-window', methods=['GET'])
+def get_spray_window():
+    """Dedicated endpoint for hourly spray window."""
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    district = request.args.get('district')
+    if not district and not (lat and lng):
+        district = 'Hyderabad'
+    bundle = get_complete_weather_bundle(lat=lat, lng=lng, district=district)
+    spray_eval = evaluate_spraying_window(bundle["current"], bundle["hourly"])
+    return jsonify(spray_eval), 200
+
+
+@app.route('/disease-risk', methods=['GET'])
+def get_disease_risk():
+    """Dedicated endpoint for crop-specific disease and pest pressure."""
+    crop_id = request.args.get('crop', 'cotton')
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    district = request.args.get('district')
+    if not district and not (lat and lng):
+        district = 'Hyderabad'
+    bundle = get_complete_weather_bundle(lat=lat, lng=lng, district=district)
+    disease_eval = evaluate_disease_pressure(bundle["current"], bundle["hourly"], crop_id=crop_id)
+    return jsonify(disease_eval), 200
+
 
 @app.route('/frost-risk', methods=['GET'])
 def get_frost_risk():
-    """Get frost risk prediction based on current weather"""
-    # Get current weather
-    weather = get_current_weather()
-    
-    # Predict frost risk using ML model
+    """Frost risk ML model query for current weather."""
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    district = request.args.get('district')
+    if not district and not (lat and lng):
+        district = 'Hyderabad'
+    weather = get_current_weather(lat=lat, lng=lng, district=district)
     prediction = predict_frost_risk(
         temperature=weather["temperature"],
         humidity=weather["humidity"]
     )
-    
     return jsonify({
-        "timestamp": datetime.utcnow().isoformat(),
-        "current_weather": {
-            "temperature": f"{weather['temperature']}°C",
-            "humidity": f"{weather['humidity']}%",
-            "condition": weather["condition"]
-        },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "current_weather": weather,
         "frost_prediction": prediction
     }), 200
+
 
 @app.route('/frost-risk/predict', methods=['POST'])
 def predict_custom_frost_risk():
-    """Predict frost risk for custom temperature and humidity values"""
-    data = request.get_json()
-    
-    if not data or 'temperature' not in data or 'humidity' not in data:
-        return jsonify({
-            "error": "Missing required fields",
-            "required": ["temperature", "humidity"],
-            "example": {"temperature": 5, "humidity": 80}
-        }), 400
-    
-    try:
-        temp = float(data['temperature'])
-        humidity = float(data['humidity'])
-    except ValueError:
-        return jsonify({"error": "Temperature and humidity must be numbers"}), 400
-    
-    prediction = predict_frost_risk(temp, humidity)
-    
+    """Custom parameter prediction."""
+    data = request.get_json() or {}
+    temp = float(data.get('temperature', 25))
+    hum = float(data.get('humidity', 50))
+    prediction = predict_frost_risk(temp, hum)
     return jsonify({
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "frost_prediction": prediction
     }), 200
 
+
 @app.route('/frost-risk/model-info', methods=['GET'])
 def frost_model_info():
-    """Get information about the frost prediction ML model"""
+    """ML model architecture information."""
     return jsonify({
         "model_info": get_model_info(),
-        "description": "Logistic Regression model trained on weather data to predict frost risk"
+        "description": "Scikit-Learn Logistic Regression model predicting climate and freeze risk"
     }), 200
 
+
 if __name__ == '__main__':
+    print("=" * 60)
+    print(" FarmGuard AI - Smart Farming Weather Alert System v3.0 ")
+    print(" Live Open-Meteo Integration + PJTSAU Agronomy Engine ")
+    print(" Listening on http://localhost:5000 ")
+    print("=" * 60)
     app.run(host='0.0.0.0', port=5000, debug=True)

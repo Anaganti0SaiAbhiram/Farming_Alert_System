@@ -90,7 +90,19 @@ const translations = {
         
         // Footer
         footerText: "FarmGuard - Protecting Your Harvest",
-        poweredBy: "Weather data powered by AccuWeather",
+        poweredBy: "Live Satellite & Station Telemetry powered by Open-Meteo",
+        
+        // Disease and Spray Additions
+        sprayWindowAdvisor: "Pesticide Spraying Window",
+        bestSprayWindow: "Next Safe Window:",
+        safeToSprayNow: "SAFE TO SPRAY NOW",
+        cautionSprayNow: "PROCEED WITH CAUTION",
+        doNotSprayNow: "DO NOT SPRAY NOW",
+        diseasePressureAdvisor: "Disease & Pest Risk (PJTSAU Guidelines)",
+        diseaseRisk: "Disease Risk",
+        fungalRiskLevel: "Risk Level",
+        inspectedAdvisory: "Recommended Action",
+        liveDataBadge: "Live Satellite Data",
         
         // Day Names
         monday: "Monday",
@@ -158,17 +170,23 @@ const translations = {
         
         // Crops
         rice: "Rice",
-        wheat: "Wheat",
-        corn: "Corn",
         cotton: "Cotton",
+        corn: "Corn (Maize)",
+        chili: "Chili",
+        redgram: "Red Gram (Kandi)",
+        groundnut: "Groundnut",
+        turmeric: "Turmeric (Pasupu)",
+        soybean: "Soybean",
+        bengalgram: "Bengal Gram (Senaga)",
+        greengram: "Green Gram (Pesara)",
+        blackgram: "Black Gram (Minumu)",
         sugarcane: "Sugarcane",
         tomato: "Tomato",
-        potato: "Potato",
         onion: "Onion",
-        chili: "Chili",
         mango: "Mango",
         banana: "Banana",
-        groundnut: "Groundnut"
+        potato: "Potato",
+        wheat: "Wheat"
     },
     
     hi: {
@@ -428,7 +446,19 @@ const translations = {
         
         // Footer
         footerText: "ఫార్మ్‌గార్డ్ - మీ పంటను రక్షిస్తోంది",
-        poweredBy: "వాతావరణ డేటా AccuWeather ద్వారా",
+        poweredBy: "లైవ్ శాటిలైట్ మరియు స్టేషన్ డేటా Open-Meteo ద్వారా",
+        
+        // Disease and Spray Additions
+        sprayWindowAdvisor: "మందుల పిచికారీ అనుకూల సమయం",
+        bestSprayWindow: "తదుపరి సురక్షిత సమయం:",
+        safeToSprayNow: "ఇప్పుడు పిచికారీ చేయవచ్చు",
+        cautionSprayNow: "జాగ్రత్తగా పిచికారీ చేయండి",
+        doNotSprayNow: "ఇప్పుడు పిచికారీ చేయవద్దు",
+        diseasePressureAdvisor: "తెగుళ్లు & పురుగుల ముప్పు (PJTSAU మార్గదర్శకాలు)",
+        diseaseRisk: "తెగులు ప్రమాదం",
+        fungalRiskLevel: "ముప్పు స్థాయి",
+        inspectedAdvisory: "రైతు పాటించాల్సిన చర్య",
+        liveDataBadge: "లైవ్ శాటిలైట్ డేటా",
         
         // Day Names
         monday: "సోమవారం",
@@ -496,17 +526,23 @@ const translations = {
         
         // Crops
         rice: "వరి",
-        wheat: "గోధుమ",
-        corn: "మొక్కజొన్న",
         cotton: "పత్తి",
+        corn: "మొక్కజొన్న",
+        chili: "మిర్చి",
+        redgram: "కంది",
+        groundnut: "వేరుశెనగ",
+        turmeric: "పసుపు",
+        soybean: "సోయాచిక్కుడు",
+        bengalgram: "శనగ",
+        greengram: "పెసర",
+        blackgram: "మినుము",
         sugarcane: "చెరకు",
         tomato: "టమాటా",
-        potato: "బంగాళదుంప",
         onion: "ఉల్లిపాయ",
-        chili: "మిర్చి",
         mango: "మామిడి",
         banana: "అరటి",
-        groundnut: "వేరుశెనగ"
+        potato: "బంగాళదుంప",
+        wheat: "గోధుమ"
     },
     
     ta: {

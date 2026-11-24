@@ -1,25 +1,48 @@
 // FarmGuard - Weather Alert System
 // Single Page Application
 
-const API_BASE_URL = 'http://localhost:5000';
+// Dynamic API base URL:
+// 1. Same-origin (Flask server, Dev Tunnels, ngrok, local Wi-Fi IP, mobile devices, cloud): uses relative URL ''
+// 2. Dedicated local dev server (e.g. Live Server on port 5500): connects to local backend on port 5000
+// 3. Direct file:// access: connects to localhost:5000
+const API_BASE_URL = (() => {
+    if (typeof window === 'undefined' || !window.location) return 'http://localhost:5000';
+    
+    if (window.location.protocol === 'file:') {
+        return 'http://localhost:5000';
+    }
+    
+    if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+        window.location.port && window.location.port !== '5000') {
+        return `http://${window.location.hostname}:5000`;
+    }
+    
+    return '';
+})();
 
 // Current language
 let currentLanguage = localStorage.getItem('farmguard_language') || 'en';
 
-// Crop data with emoji images
+// Crop data with emoji images - Full Telangana Crops
 const crops = [
     { id: 'rice', name: 'Rice', emoji: '🌾', frostSensitive: true },
-    { id: 'wheat', name: 'Wheat', emoji: '🌿', frostSensitive: true },
-    { id: 'corn', name: 'Corn', emoji: '🌽', frostSensitive: true },
     { id: 'cotton', name: 'Cotton', emoji: '☁️', frostSensitive: true },
+    { id: 'corn', name: 'Corn', emoji: '🌽', frostSensitive: true },
+    { id: 'chili', name: 'Chili', emoji: '🌶️', frostSensitive: true },
+    { id: 'redgram', name: 'Red Gram', emoji: '🥣', frostSensitive: false },
+    { id: 'groundnut', name: 'Groundnut', emoji: '🥜', frostSensitive: false },
+    { id: 'turmeric', name: 'Turmeric', emoji: '🟡', frostSensitive: false },
+    { id: 'soybean', name: 'Soybean', emoji: '🌿', frostSensitive: false },
+    { id: 'bengalgram', name: 'Bengal Gram', emoji: '🫘', frostSensitive: false },
+    { id: 'greengram', name: 'Green Gram', emoji: '🌱', frostSensitive: false },
+    { id: 'blackgram', name: 'Black Gram', emoji: '🌾', frostSensitive: false },
     { id: 'sugarcane', name: 'Sugarcane', emoji: '🎋', frostSensitive: false },
     { id: 'tomato', name: 'Tomato', emoji: '🍅', frostSensitive: true },
-    { id: 'potato', name: 'Potato', emoji: '🥔', frostSensitive: true },
     { id: 'onion', name: 'Onion', emoji: '🧅', frostSensitive: false },
-    { id: 'chili', name: 'Chili', emoji: '🌶️', frostSensitive: true },
     { id: 'mango', name: 'Mango', emoji: '🥭', frostSensitive: true },
     { id: 'banana', name: 'Banana', emoji: '🍌', frostSensitive: true },
-    { id: 'groundnut', name: 'Groundnut', emoji: '🥜', frostSensitive: false }
+    { id: 'potato', name: 'Potato', emoji: '🥔', frostSensitive: true },
+    { id: 'wheat', name: 'Wheat', emoji: '🌿', frostSensitive: true }
 ];
 
 // Get translated text
@@ -173,6 +196,13 @@ function updateAllTranslations() {
     const frostSectionTitle = document.getElementById('frostSectionTitle');
     if (frostSectionTitle) frostSectionTitle.textContent = t('frostRiskAlert');
     
+    // Update spray and disease sections
+    const spraySectionTitle = document.getElementById('spraySectionTitle');
+    if (spraySectionTitle) spraySectionTitle.textContent = t('sprayWindowAdvisor');
+    
+    const diseaseSectionTitle = document.getElementById('diseaseSectionTitle');
+    if (diseaseSectionTitle) diseaseSectionTitle.textContent = t('diseasePressureAdvisor');
+    
     // Update footer
     const footerMain = document.getElementById('footerMain');
     const footerSub = document.getElementById('footerSub');
@@ -238,6 +268,14 @@ function updateAllTranslations() {
         // Re-render smart recommendations with new language
         if (appState.alertsData.weekly_recommendations) {
             renderSmartRecommendations(appState.alertsData.weekly_recommendations, appState.alertsData.crop_tips);
+        }
+        
+        // Re-render spray window and disease pressure
+        if (appState.alertsData.spray_window) {
+            renderSprayWindow(appState.alertsData.spray_window);
+        }
+        if (appState.alertsData.disease_pressure) {
+            renderDiseasePressure(appState.alertsData.disease_pressure);
         }
     }
     
@@ -380,6 +418,7 @@ let appState = {
     weatherData: null,
     alertsData: null
 };
+window.appState = appState;
 
 // DOM Elements
 const elements = {
@@ -544,10 +583,197 @@ function updateLanguageBadge() {
     languageBadge.textContent = languageNames[currentLanguage] || currentLanguage;
 }
 
-// Location Functions
+// Telangana district aliases to ensure robust mapping from geocoding APIs
+const TELANGANA_DISTRICT_ALIASES = {
+    'komaram bheem': 'asifabad',
+    'komarambheem': 'asifabad',
+    'asifabad': 'asifabad',
+    'jayashankar': 'bhupalapally',
+    'bhupalpally': 'bhupalapally',
+    'bhupalapally': 'bhupalapally',
+    'bhadradri': 'kothagudem',
+    'kothagudem': 'kothagudem',
+    'jogulamba': 'gadwal',
+    'gadwal': 'gadwal',
+    'medchal': 'medchal',
+    'malkajgiri': 'medchal',
+    'rajanna': 'sircilla',
+    'sircilla': 'sircilla',
+    'ranga reddy': 'rangareddy',
+    'rangareddy': 'rangareddy',
+    'yadadri': 'yadadri',
+    'bhuvanagiri': 'yadadri',
+    'bhongir': 'yadadri',
+    'warangal urban': 'hanumakonda',
+    'hanumakonda': 'hanumakonda',
+    'warangal rural': 'warangal',
+    'warangal': 'warangal',
+    'mahbubnagar': 'mahbubnagar',
+    'mahabubnagar': 'mahbubnagar'
+};
+
+// Match detected location to one of the 33 official Telangana districts
+function matchTelanganaDistrict(districtName, lat, lng) {
+    const list = (typeof telanganaMapDistricts !== 'undefined') ? telanganaMapDistricts : {};
+    if (!districtName && (lat === undefined || lng === undefined)) return null;
+
+    if (districtName) {
+        const clean = districtName.toLowerCase().replace(/district/gi, '').replace(/collectorate/gi, '').trim();
+
+        // 1. Direct ID match
+        if (list[clean]) return list[clean];
+
+        // 2. Direct name match
+        for (const [id, d] of Object.entries(list)) {
+            if (d.name.toLowerCase() === clean) return d;
+        }
+
+        // 3. Alias dictionary match
+        for (const [alias, id] of Object.entries(TELANGANA_DISTRICT_ALIASES)) {
+            if (clean.includes(alias) || alias.includes(clean)) {
+                if (list[id]) return list[id];
+            }
+        }
+
+        // 4. Substring search in district names
+        for (const [id, d] of Object.entries(list)) {
+            const dName = d.name.toLowerCase();
+            if (clean.includes(dName) || dName.includes(clean) || id.includes(clean) || clean.includes(id)) {
+                return d;
+            }
+        }
+    }
+
+    // 5. Fallback: If coordinates inside Telangana bounding box, pick closest district
+    if (lat !== undefined && lng !== undefined) {
+        if (lat >= 15.8 && lat <= 19.9 && lng >= 77.2 && lng <= 81.3) {
+            return findNearestTelanganaDistrict(lat, lng);
+        }
+    }
+
+    return null;
+}
+
+// Find nearest Telangana district from coordinates
+function findNearestTelanganaDistrict(lat, lng) {
+    let nearest = null;
+    let minDistance = Infinity;
+    const districtList = (typeof telanganaMapDistricts !== 'undefined') ? telanganaMapDistricts : {};
+    
+    for (const [id, dist] of Object.entries(districtList)) {
+        const dLat = (lat - dist.lat);
+        const dLng = (lng - dist.lng);
+        const distSq = (dLat * dLat) + (dLng * dLng);
+        if (distSq < minDistance) {
+            minDistance = distSq;
+            nearest = dist;
+        }
+    }
+    return nearest;
+}
+
+// Reverse Geocoding with Backend Proxy and multi-tier client fallbacks
+async function reverseGeocode(lat, lng) {
+    // 1. Primary: Server-side proxy endpoint (immune to browser CORS & rate limits)
+    try {
+        const res = await fetch(`${API_BASE_URL}/reverse-geocode?lat=${lat}&lng=${lng}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'success') {
+                return data;
+            }
+        }
+    } catch (e) {
+        console.warn('Backend reverse-geocode error, trying client-side fallback:', e);
+    }
+
+    // 2. Fallback 1: BigDataCloud Client API (fast, free, CORS-enabled)
+    try {
+        const bdcRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+        );
+        if (bdcRes.ok) {
+            const bdcData = await bdcRes.json();
+            const town = bdcData.locality || bdcData.city || '';
+            const state = bdcData.principalSubdivision || '';
+            let district = '';
+
+            const localityInfo = bdcData.localityInfo?.administrative || [];
+            for (const item of localityInfo) {
+                if (item.adminLevel === 6 || item.adminLevel === 5) {
+                    const n = item.name || '';
+                    if (n && !district) district = n.replace(/ District/gi, '').trim();
+                }
+            }
+            if (!district) district = town;
+
+            const isTelangana = state.toLowerCase().includes('telangana') ||
+                (lat >= 15.8 && lat <= 19.9 && lng >= 77.2 && lng <= 81.3);
+
+            const parts = [town, district, state].filter(Boolean);
+            return {
+                status: 'success',
+                lat,
+                lng,
+                town,
+                district,
+                state,
+                is_telangana: isTelangana,
+                formatted: parts.join(', ') || `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`
+            };
+        }
+    } catch (e) {
+        console.warn('BigDataCloud reverse geocode error, trying Nominatim fallback:', e);
+    }
+
+    // 3. Fallback 2: OpenStreetMap Nominatim
+    try {
+        const nomRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+        );
+        if (nomRes.ok) {
+            const nomData = await nomRes.json();
+            const addr = nomData.address || {};
+            const town = addr.city || addr.town || addr.village || addr.suburb || '';
+            const district = (addr.state_district || addr.county || '').replace(/ District/gi, '').trim();
+            const state = addr.state || '';
+            const isTelangana = state.toLowerCase().includes('telangana') ||
+                (lat >= 15.8 && lat <= 19.9 && lng >= 77.2 && lng <= 81.3);
+
+            const parts = [town, district, state].filter(Boolean);
+            return {
+                status: 'success',
+                lat,
+                lng,
+                town,
+                district,
+                state,
+                is_telangana: isTelangana,
+                formatted: parts.join(', ') || `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`
+            };
+        }
+    } catch (e) {
+        console.warn('Nominatim reverse geocode error:', e);
+    }
+
+    // 4. Fallback 3: Coordinate bounds check
+    const isTelangana = (lat >= 15.8 && lat <= 19.9 && lng >= 77.2 && lng <= 81.3);
+    return {
+        status: 'fallback',
+        lat,
+        lng,
+        town: '',
+        district: '',
+        state: isTelangana ? 'Telangana' : 'Other',
+        is_telangana: isTelangana,
+        formatted: `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`
+    };
+}
+
+// Location Functions - Auto GPS
 async function detectLocation() {
-    elements.gpsBtn.classList.add('loading');
-    elements.locationLoading.classList.remove('hidden');
+    if (elements.gpsBtn) elements.gpsBtn.classList.add('loading');
+    if (elements.locationLoading) elements.locationLoading.classList.remove('hidden');
     
     if (!navigator.geolocation) {
         showLocationError('Geolocation is not supported by your browser');
@@ -556,40 +782,110 @@ async function detectLocation() {
     
     navigator.geolocation.getCurrentPosition(
         async (position) => {
-            const { latitude, longitude } = position.coords;
-            appState.location = { lat: latitude, lng: longitude };
-            
-            // Clear manual selection
-            appState.selectedRegion = null;
-            appState.selectedDistrict = null;
-            document.querySelectorAll('.district-path.selected').forEach(c => c.classList.remove('selected'));
-            localStorage.removeItem('farmguard_region');
-            localStorage.removeItem('farmguard_district');
-            
-            // Get location name using reverse geocoding
-            let locationName = 'Location Detected';
             try {
-                locationName = await reverseGeocode(latitude, longitude);
-                elements.locationName.textContent = locationName;
-            } catch (error) {
-                elements.locationName.textContent = 'Location Detected';
-            }
-            
-            elements.locationCoords.textContent = `${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E`;
-            
-            // Show confirmation
-            elements.confirmedLocation.textContent = `📍 ${locationName}`;
-            elements.locationConfirmation.classList.remove('hidden');
-            
-            // Save to localStorage
-            localStorage.setItem('farmguard_location', JSON.stringify(appState.location));
-            
-            elements.gpsBtn.classList.remove('loading');
-            elements.locationLoading.classList.add('hidden');
-            
-            // Fetch weather data
-            if (appState.selectedCrop) {
-                fetchWeatherAlerts();
+                const { latitude, longitude } = position.coords;
+                
+                // Reverse geocode detected coordinates
+                const geo = await reverseGeocode(latitude, longitude);
+                const isTelangana = geo.is_telangana;
+                
+                if (isTelangana) {
+                    // Match to Telangana District
+                    const matchedDistrict = matchTelanganaDistrict(geo.district || geo.town, latitude, longitude);
+                    const districtId = matchedDistrict ? matchedDistrict.id : 'hyderabad';
+                    const districtObj = (typeof telanganaMapDistricts !== 'undefined' && telanganaMapDistricts[districtId])
+                        ? telanganaMapDistricts[districtId]
+                        : { id: districtId, name: 'Hyderabad', emoji: '🏛️', lat: latitude, lng: longitude };
+                    
+                    const townName = geo.town || districtObj.name;
+                    
+                    // 1. Sync dropdowns (select district, populate & select city/town, dynamically add if missing)
+                    if (typeof syncLocationDropdowns === 'function') {
+                        syncLocationDropdowns(districtId, townName, latitude, longitude);
+                    }
+                    
+                    // 2. Update app state
+                    appState.location = { lat: latitude, lng: longitude };
+                    appState.selectedRegion = { id: 'telangana', name: 'Telangana' };
+                    appState.selectedDistrict = { ...districtObj, selectedCity: townName };
+                    
+                    // 3. Update UI location labels
+                    const displayName = `${townName ? townName + ', ' : ''}${districtObj.name}, Telangana`;
+                    if (elements.locationName) elements.locationName.textContent = displayName;
+                    if (elements.locationCoords) elements.locationCoords.textContent = `${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E (GPS)`;
+                    
+                    // 4. Update confirmed location badge
+                    if (elements.confirmedLocation) {
+                        elements.confirmedLocation.textContent = `${districtObj.emoji || '📍'} ${displayName}`;
+                    }
+                    if (elements.locationConfirmation) {
+                        elements.locationConfirmation.classList.remove('hidden');
+                    }
+                    
+                    // 5. Save to localStorage
+                    try {
+                        localStorage.setItem('farmguard_location', JSON.stringify({ lat: latitude, lng: longitude }));
+                        localStorage.setItem('farmguard_region', 'telangana');
+                        localStorage.setItem('farmguard_district', districtId);
+                        localStorage.setItem('farmguard_city', townName);
+                    } catch (e) {
+                        console.warn('Could not save to localStorage:', e);
+                    }
+                    
+                    // 6. Fetch weather alerts if a crop is selected
+                    if (appState.selectedCrop && typeof fetchWeatherAlerts === 'function') {
+                        fetchWeatherAlerts();
+                    }
+                } else {
+                    // OUTSIDE TELANGANA:
+                    // Preserve real coordinates and place name (e.g. "Bengaluru, Karnataka")
+                    // Do NOT force/snap to an unrelated Telangana district!
+                    const stateName = geo.state || 'Outside Telangana';
+                    const placeName = geo.town ? `${geo.town}, ${stateName}` : (geo.formatted || `${stateName}`);
+                    
+                    // 1. Reset dropdowns and clear map highlight
+                    if (typeof syncLocationDropdowns === 'function') {
+                        syncLocationDropdowns(null);
+                    }
+                    
+                    // 2. Update app state
+                    appState.location = { lat: latitude, lng: longitude };
+                    appState.selectedRegion = { id: 'other', name: stateName };
+                    appState.selectedDistrict = null;
+                    
+                    // 3. Update UI location labels
+                    if (elements.locationName) elements.locationName.textContent = placeName;
+                    if (elements.locationCoords) elements.locationCoords.textContent = `${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E (GPS)`;
+                    
+                    // 4. Update confirmed location badge
+                    if (elements.confirmedLocation) {
+                        elements.confirmedLocation.textContent = `📍 ${placeName}`;
+                    }
+                    if (elements.locationConfirmation) {
+                        elements.locationConfirmation.classList.remove('hidden');
+                    }
+                    
+                    // 5. Save to localStorage
+                    try {
+                        localStorage.setItem('farmguard_location', JSON.stringify({ lat: latitude, lng: longitude }));
+                        localStorage.setItem('farmguard_region', 'other');
+                        localStorage.removeItem('farmguard_district');
+                        localStorage.removeItem('farmguard_city');
+                    } catch (e) {
+                        console.warn('Could not save to localStorage:', e);
+                    }
+                    
+                    // 6. Fetch weather alerts if a crop is selected
+                    if (appState.selectedCrop && typeof fetchWeatherAlerts === 'function') {
+                        fetchWeatherAlerts();
+                    }
+                }
+            } catch (err) {
+                console.error('Error processing GPS location:', err);
+                showLocationError('Error resolving location details.');
+            } finally {
+                if (elements.gpsBtn) elements.gpsBtn.classList.remove('loading');
+                if (elements.locationLoading) elements.locationLoading.classList.add('hidden');
             }
         },
         (error) => {
@@ -601,25 +897,6 @@ async function detectLocation() {
             maximumAge: 0
         }
     );
-}
-
-async function reverseGeocode(lat, lng) {
-    try {
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
-        );
-        const data = await response.json();
-        
-        if (data.address) {
-            const city = data.address.city || data.address.town || data.address.village || data.address.county;
-            const state = data.address.state;
-            return `${city}, ${state}`;
-        }
-        return 'Unknown Location';
-    } catch (error) {
-        console.error('Reverse geocoding error:', error);
-        return 'Unknown Location';
-    }
 }
 
 function getLocationErrorMessage(error) {
@@ -636,15 +913,21 @@ function getLocationErrorMessage(error) {
 }
 
 function showLocationError(message) {
-    elements.gpsBtn.classList.remove('loading');
-    elements.locationLoading.classList.add('hidden');
-    elements.locationCoords.textContent = message;
-    elements.locationCoords.style.color = '#ef4444';
-    
-    setTimeout(() => {
-        elements.locationCoords.style.color = '';
-        elements.locationCoords.textContent = 'Choose below or use GPS';
-    }, 3000);
+    if (elements.gpsBtn) elements.gpsBtn.classList.remove('loading');
+    if (elements.locationLoading) elements.locationLoading.classList.add('hidden');
+    if (elements.locationCoords) {
+        elements.locationCoords.textContent = message;
+        elements.locationCoords.style.color = '#ef4444';
+        
+        setTimeout(() => {
+            elements.locationCoords.style.color = '';
+            if (appState.location) {
+                elements.locationCoords.textContent = `${appState.location.lat.toFixed(4)}°N, ${appState.location.lng.toFixed(4)}°E`;
+            } else {
+                elements.locationCoords.textContent = (typeof t === 'function' ? t('chooseOrGps') : 'Choose below or use GPS') || 'Choose below or use GPS';
+            }
+        }, 4000);
+    }
 }
 
 // Manual Location Selection Functions
@@ -662,17 +945,24 @@ function initializeTelanganaMap() {
     }
 }
 
-function selectDistrictFromMap(districtId) {
-    // Direct district selection from Telangana map
-    const district = telanganaMapDistricts[districtId];
+function selectDistrictFromMap(districtId, cityName, lat, lng) {
+    if (typeof syncLocationDropdowns === 'function') {
+        syncLocationDropdowns(districtId, cityName, lat, lng);
+    }
+    const district = (typeof telanganaMapDistricts !== 'undefined') ? telanganaMapDistricts[districtId] : null;
     
     if (district) {
-        appState.selectedDistrict = district;
+        const citySelect = document.getElementById('citySelect');
+        const selectedCity = (citySelect && citySelect.value) ? citySelect.value : (cityName || district.name);
+        appState.selectedDistrict = { ...district, selectedCity: selectedCity };
         appState.selectedRegion = { id: 'telangana', name: 'Telangana' };
-        appState.location = { lat: district.lat, lng: district.lng };
+        appState.location = { lat: lat || district.lat, lng: lng || district.lng };
         
         // Update location display with translated names
-        const locationText = `${getDistrictName(district.id)}, Telangana`;
+        const translatedCity = (typeof getTranslatedCityName === 'function') ? getTranslatedCityName(selectedCity) : selectedCity;
+        const translatedDistrict = (typeof getMapDistrictName === 'function') ? getMapDistrictName(districtId) : (getDistrictName(district.id) || district.name);
+        const locationText = `${translatedCity}, ${translatedDistrict}`;
+        
         const locationNameEl = document.getElementById('locationName');
         if (locationNameEl) {
             locationNameEl.textContent = locationText;
@@ -680,26 +970,31 @@ function selectDistrictFromMap(districtId) {
         
         const locationCoordsEl = document.getElementById('locationCoords');
         if (locationCoordsEl) {
-            locationCoordsEl.textContent = `${district.lat.toFixed(4)}°N, ${district.lng.toFixed(4)}°E`;
+            locationCoordsEl.textContent = `${appState.location.lat.toFixed(4)}°N, ${appState.location.lng.toFixed(4)}°E`;
         }
         
         // Show confirmation
         const confirmedLocationEl = document.getElementById('confirmedLocation');
         const locationConfirmationEl = document.getElementById('locationConfirmation');
         if (confirmedLocationEl) {
-            confirmedLocationEl.textContent = `${district.emoji} ${locationText}`;
+            confirmedLocationEl.textContent = `${district.emoji || '📍'} ${locationText}`;
         }
         if (locationConfirmationEl) {
             locationConfirmationEl.classList.remove('hidden');
         }
         
         // Save to localStorage
-        localStorage.setItem('farmguard_location', JSON.stringify(appState.location));
-        localStorage.setItem('farmguard_region', 'telangana');
-        localStorage.setItem('farmguard_district', districtId);
+        try {
+            localStorage.setItem('farmguard_location', JSON.stringify(appState.location));
+            localStorage.setItem('farmguard_region', 'telangana');
+            localStorage.setItem('farmguard_district', districtId);
+            localStorage.setItem('farmguard_city', selectedCity);
+        } catch (e) {
+            console.warn('Could not save to localStorage:', e);
+        }
         
         // Fetch weather if crop is selected
-        if (appState.selectedCrop) {
+        if (appState.selectedCrop && typeof fetchWeatherAlerts === 'function') {
             fetchWeatherAlerts();
         }
     }
@@ -753,14 +1048,15 @@ function selectCrop(cropId) {
     // Save to localStorage
     localStorage.setItem('farmguard_crop', cropId);
     
-    // Check if district and city are selected
+    // Check if district and city are selected, or if location is outside Telangana
     const districtSelect = document.getElementById('districtSelect');
     const citySelect = document.getElementById('citySelect');
     const districtSelected = districtSelect && districtSelect.value;
     const citySelected = citySelect && citySelect.value;
+    const isOutsideTelangana = appState.location && appState.selectedRegion && appState.selectedRegion.id === 'other';
     
     // Fetch weather if location is set
-    if (appState.location && districtSelected && citySelected) {
+    if (appState.location && ((districtSelected && citySelected) || isOutsideTelangana)) {
         fetchWeatherAlerts();
     } else if (!districtSelected && !citySelected) {
         showAlertMessage(t('selectDistrictCity'));
@@ -812,6 +1108,8 @@ async function fetchWeatherAlerts() {
         renderWeatherAlerts(data);
         renderForecast(data.forecast);
         renderSmartRecommendations(data.weekly_recommendations, data.crop_tips);
+        renderSprayWindow(data.spray_window);
+        renderDiseasePressure(data.disease_pressure);
         renderFrostAlert(data.frost_alert);
         
     } catch (error) {
@@ -871,6 +1169,13 @@ function renderWeatherAlerts(data) {
     const unsuitableActivities = activities.filter(a => !a.suitable).map(a => a.activity);
     
     elements.alertsContainer.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+            <span style="font-size: 0.85rem; font-weight: 600; color: #475569;">📍 ${data.location ? data.location.district : 'Telangana'}</span>
+            <span style="display: inline-flex; align-items: center; font-size: 0.8rem; color: #166534; font-weight: 600; background: #dcfce7; padding: 0.2rem 0.6rem; border-radius: 12px;">
+                <span style="display: inline-block; width: 7px; height: 7px; background: #22c55e; border-radius: 50%; margin-right: 6px;"></span>
+                🛰️ ${t('liveDataBadge') || 'Live Satellite Data'} (Open-Meteo)
+            </span>
+        </div>
         <div class="weather-card">
             <div class="weather-item temp-item">
                 <span class="weather-icon">🌡️</span>
@@ -961,6 +1266,89 @@ function renderFrostAlert(frost) {
             </div>
         ` : ''}
     `;
+}
+
+// Render Spray Window Advisor
+function renderSprayWindow(spray) {
+    const spraySection = document.getElementById('sprayWindowSection');
+    const sprayCard = document.getElementById('sprayWindowCard');
+    if (!spraySection || !sprayCard || !spray) return;
+    
+    spraySection.classList.remove('hidden');
+    
+    const statusClass = spray.status === 'OPTIMAL' ? 'status-optimal' : (spray.status === 'CAUTION' ? 'status-caution' : 'status-unsuitable');
+    const statusText = spray.status === 'OPTIMAL' ? (t('safeToSprayNow') || 'SAFE TO SPRAY NOW') : (spray.status === 'CAUTION' ? (t('cautionSprayNow') || 'PROCEED WITH CAUTION') : (t('doNotSprayNow') || 'DO NOT SPRAY NOW'));
+    const statusIcon = spray.status === 'OPTIMAL' ? '✅' : (spray.status === 'CAUTION' ? '⚠️' : '🚫');
+    const bestWin = spray.best_window ? spray.best_window.window_text : 'Early Morning';
+    
+    let reasonsHtml = '';
+    if (spray.reasons && spray.reasons.length > 0) {
+        reasonsHtml = '<ul class="spray-reasons-list">' + spray.reasons.map(r => `<li>${r.text}</li>`).join('') + '</ul>';
+    }
+    
+    let timelineHtml = '';
+    if (spray.timeline && spray.timeline.length > 0) {
+        timelineHtml = '<div class="hourly-timeline-scroll">' + spray.timeline.map(h => `
+            <div class="timeline-hour-chip chip-${h.status}">
+                <div class="chip-time">${h.hour_label}</div>
+                <div class="chip-stat">💨 ${h.wind} km/h</div>
+                <div class="chip-stat">💧 ${h.rain_prob}% rain</div>
+            </div>
+        `).join('') + '</div>';
+    }
+    
+    sprayCard.innerHTML = `
+        <div class="spray-banner ${statusClass}">
+            <div class="spray-status-badge">
+                <span>${statusIcon}</span>
+                <span>${statusText}</span>
+            </div>
+            <div class="spray-best-window">
+                ⏰ ${t('bestSprayWindow') || 'Next Safe Window:'} <strong>${bestWin}</strong>
+            </div>
+        </div>
+        ${reasonsHtml}
+        <div style="font-weight: 600; font-size: 0.9rem; color: #475569; margin-top: 0.75rem;">
+            🕒 12-Hour Spray Forecast:
+        </div>
+        ${timelineHtml}
+    `;
+}
+
+// Render Crop Disease & Pest Risk (PJTSAU)
+function renderDiseasePressure(disease) {
+    const diseaseSection = document.getElementById('diseasePressureSection');
+    const container = document.getElementById('diseaseContainer');
+    if (!diseaseSection || !container || !disease) return;
+    
+    diseaseSection.classList.remove('hidden');
+    
+    if (!disease.disease_alerts || disease.disease_alerts.length === 0) {
+        container.innerHTML = `<div style="padding: 1rem; color: #64748b;">No active disease risks reported for this crop under current climate.</div>`;
+        return;
+    }
+    
+    container.innerHTML = disease.disease_alerts.map(d => {
+        const borderClass = d.risk_level === 'HIGH' ? 'border-danger' : (d.risk_level === 'MODERATE' ? 'border-warning' : '');
+        const badgeClass = d.risk_level === 'HIGH' ? 'badge-danger' : (d.risk_level === 'MODERATE' ? 'badge-warning' : 'badge-success');
+        const translatedRisk = t(d.risk_level.toLowerCase()) || d.risk_level;
+        
+        return `
+            <div class="disease-card ${borderClass}">
+                <div class="disease-card-header">
+                    <span class="disease-title">${d.disease_name}</span>
+                    <span class="disease-badge ${badgeClass}">${translatedRisk} Risk</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748b; margin-bottom: 0.5rem;">
+                    Pathogen / Threat: <em>${d.pathogen}</em>
+                </div>
+                <div class="disease-advisory">
+                    <strong>💡 ${t('inspectedAdvisory') || 'Recommended Action'}:</strong><br>
+                    ${d.advisory}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Render 7-Day Forecast
@@ -1496,45 +1884,56 @@ function loadSavedState() {
     // Load saved location
     const savedLocation = localStorage.getItem('farmguard_location');
     const savedDistrict = localStorage.getItem('farmguard_district');
+    const savedCity = localStorage.getItem('farmguard_city');
+    const savedRegion = localStorage.getItem('farmguard_region');
     
     if (savedLocation && savedDistrict) {
         try {
             appState.location = JSON.parse(savedLocation);
             
-            // Restore district selection from Telangana map
+            // Restore district & city dropdowns and map selection
             setTimeout(() => {
-                const mapDistrictPath = document.querySelector(`.district-path[data-district="${savedDistrict}"]`);
-                if (mapDistrictPath) {
-                    mapDistrictPath.classList.add('selected');
+                if (typeof syncLocationDropdowns === 'function') {
+                    syncLocationDropdowns(savedDistrict, savedCity);
+                }
+                
+                const district = (typeof telanganaMapDistricts !== 'undefined') ? telanganaMapDistricts[savedDistrict] : null;
+                if (district) {
+                    appState.selectedDistrict = { ...district, selectedCity: savedCity || district.name };
+                    appState.selectedRegion = { id: 'telangana', name: 'Telangana' };
                     
-                    // Update location display
-                    const district = telanganaMapDistricts[savedDistrict];
-                    if (district) {
-                        appState.selectedDistrict = district;
-                        appState.selectedRegion = { id: 'telangana', name: 'Telangana' };
-                        
-                        const locationText = `${getDistrictName(savedDistrict)}, Telangana`;
-                        const locationNameEl = document.getElementById('locationName');
-                        if (locationNameEl) {
-                            locationNameEl.textContent = locationText;
-                        }
-                        
-                        const locationCoordsEl = document.getElementById('locationCoords');
-                        if (locationCoordsEl) {
-                            locationCoordsEl.textContent = `${district.lat.toFixed(4)}°N, ${district.lng.toFixed(4)}°E`;
-                        }
-                        
-                        const confirmedLocationEl = document.getElementById('confirmedLocation');
-                        const locationConfirmationEl = document.getElementById('locationConfirmation');
-                        if (confirmedLocationEl) {
-                            confirmedLocationEl.textContent = `${district.emoji} ${locationText}`;
-                        }
-                        if (locationConfirmationEl) {
-                            locationConfirmationEl.classList.remove('hidden');
-                        }
+                    const translatedCity = (typeof getTranslatedCityName === 'function') ? getTranslatedCityName(savedCity || district.name) : (savedCity || district.name);
+                    const translatedDistrict = (typeof getMapDistrictName === 'function') ? getMapDistrictName(savedDistrict) : (getDistrictName(savedDistrict) || district.name);
+                    const locationText = `${translatedCity}, ${translatedDistrict}`;
+                    
+                    const locationNameEl = document.getElementById('locationName');
+                    if (locationNameEl) {
+                        locationNameEl.textContent = locationText;
+                    }
+                    
+                    const locationCoordsEl = document.getElementById('locationCoords');
+                    if (locationCoordsEl) {
+                        locationCoordsEl.textContent = `${appState.location.lat.toFixed(4)}°N, ${appState.location.lng.toFixed(4)}°E`;
+                    }
+                    
+                    const confirmedLocationEl = document.getElementById('confirmedLocation');
+                    const locationConfirmationEl = document.getElementById('locationConfirmation');
+                    if (confirmedLocationEl) {
+                        confirmedLocationEl.textContent = `${district.emoji || '📍'} ${locationText}`;
+                    }
+                    if (locationConfirmationEl) {
+                        locationConfirmationEl.classList.remove('hidden');
                     }
                 }
             }, 300);
+        } catch (e) {
+            console.error('Error loading saved location:', e);
+        }
+    } else if (savedLocation && savedRegion === 'other') {
+        try {
+            appState.location = JSON.parse(savedLocation);
+            appState.selectedRegion = { id: 'other', name: 'Outside Telangana' };
+            appState.selectedDistrict = null;
         } catch (e) {
             console.error('Error loading saved location:', e);
         }
